@@ -34,7 +34,6 @@ let direction = -1, facing = -1;
 
 let sleeping = false;  // State to track if the pet is sleeping
 let jumpInProgress = false;  // To track if a jump is currently in progress
-let sleepTimeout, jumpTimeout;  // To manage sleep and jump timing
 
 // Function to start jumping
 function startJump() {
@@ -93,8 +92,8 @@ function animate() {
     petY = groundY;
     if (jumpInProgress && !sleeping) {
       jumpInProgress = false;
-      // Initiate sleep after the jump finishes
-      sleepPet();
+      // Start another jump immediately after the first finishes
+      setTimeout(() => startJump(), 500); // Small delay before next jump starts
     }
   }
 
@@ -116,28 +115,7 @@ petImgLeft.onload = () => {
   animate();
 };
 
-// Sleep function for the pet
-function sleepPet() {
-  if (sleeping) return;  // Prevent triggering sleep if already sleeping
-
-  sleeping = true;  // Change to sleeping image
-  clearTimeout(sleepTimeout);  // Clear any existing timeout
-  clearTimeout(jumpTimeout);  // Clear jump timeout if exists
-
-  setTimeout(() => {
-    // Stay in sleep mode for 5 seconds
-    setTimeout(() => {
-      sleeping = false;  // Revert back to jumping
-      startJump();  // Resume jumping after 2 seconds
-    }, 2000);  // Resume jumping after 2 seconds
-  }, 5000);  // Stay in sleep mode for 5 seconds
-}
-
-// Button to trigger sleep (simulate button click)
-document.getElementById('sleepButton').addEventListener('click', sleepPet);
-
-// --- Stats and interactions below (unchanged) ---
-
+// Stat Elements
 let pet = {
   happiness: 50,
   hunger: 50,
@@ -152,30 +130,41 @@ function updateStats() {
   document.getElementById('health').textContent = pet.health;
 }
 
+// Feed the pet (example)
 function feedPet() {
   pet.hunger = Math.max(0, pet.hunger - 15);
   pet.happiness = Math.min(100, pet.happiness + 5);
   updateStats();
-  registerBackgroundSync('sync-feed-pet');
 }
 
+// Play with the pet
 function playWithPet() {
   pet.happiness = Math.min(100, pet.happiness + 10);
   pet.hunger = Math.min(100, pet.hunger + 5);
   updateStats();
 }
 
+// Clean the pet
 function cleanPet() {
   pet.cleanliness = 100;
   pet.happiness = Math.min(100, pet.happiness + 5);
   updateStats();
 }
 
+// Heal the pet
 function healPet() {
   pet.health = 100;
   pet.happiness = Math.min(100, pet.happiness + 5);
   updateStats();
 }
+
+// Button to trigger sleep (simulate button click)
+document.getElementById('sleepButton').addEventListener('click', () => {
+  sleeping = true;
+  setTimeout(() => sleeping = false, 5000); // Sleep for 5 seconds
+});
+
+// --- Stats and interactions below (unchanged) ---
 
 function registerBackgroundSync(tag) {
   if ('serviceWorker' in navigator && 'SyncManager' in window) {
