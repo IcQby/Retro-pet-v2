@@ -56,6 +56,12 @@ function drawBackground() {
 
 // Animation function
 function animate() {
+  // Ensure pet is within bounds
+  if (petX < 0) petX = 0;
+  if (petX + width > canvas.width) petX = canvas.width - width;
+  if (petY < 0) petY = 0;  // Prevent the pet from going above the canvas
+  if (petY > canvas.height - height) petY = canvas.height - height;  // Prevent it from going below the canvas
+
   drawBackground();  // Draw the background first
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear previous frame
@@ -110,7 +116,9 @@ function animate() {
 
 // Start animation once image is loaded
 petImgLeft.onload = () => {
-  animate();
+  petImgSleep.onload = () => {
+    animate();  // Start animation only after both images are loaded
+  };
 };
 
 // Sleep sequence function
@@ -142,50 +150,3 @@ document.getElementById('sleepButton').addEventListener('click', () => {
     initiateSleepSequence();  // Start the sleep sequence
   }
 });
-
-// --- Stats and interactions below (unchanged) ---
-
-function updateStats() {
-  document.getElementById('happiness').textContent = pet.happiness;
-  document.getElementById('hunger').textContent = pet.hunger;
-  document.getElementById('cleanliness').textContent = pet.cleanliness;
-  document.getElementById('health').textContent = pet.health;
-}
-
-// Stat Elements
-let pet = {
-  happiness: 50,
-  hunger: 50,
-  cleanliness: 50,
-  health: 50,
-};
-
-// Feed the pet (example)
-function feedPet() {
-  pet.hunger = Math.max(0, pet.hunger - 15);
-  pet.happiness = Math.min(100, pet.happiness + 5);
-  updateStats();
-}
-
-// Play with the pet
-function playWithPet() {
-  pet.happiness = Math.min(100, pet.happiness + 10);
-  pet.hunger = Math.min(100, pet.hunger + 5);
-  updateStats();
-}
-
-// Clean the pet
-function cleanPet() {
-  pet.cleanliness = 100;
-  pet.happiness = Math.min(100, pet.happiness + 5);
-  updateStats();
-}
-
-// Heal the pet
-function healPet() {
-  pet.health = 100;
-  pet.happiness = Math.min(100, pet.happiness + 5);
-  updateStats();
-}
-
-// Register background sync, etc. (unchanged)
