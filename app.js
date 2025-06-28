@@ -24,11 +24,13 @@ const groundY = canvas.height - height ;  // Set ground to the bottom based on 1
 // Pet image
 let petImgLeft = new Image();
 petImgLeft.src = 'icon/icon-192.png';
+let petImgSleep = new Image();
+petImgSleep.src = 'icon/pig-sleep.png'; // Image for sleeping pig
 
 let petX = canvas.width - width - 10, petY = groundY; // inside canvas
 let vx = 0, vy = 0, gravity = 0.4;
 let direction = -1, facing = -1;
-
+let isSleeping = false; // Track sleep state
 
 // Function to start jumping
 function startJump() {
@@ -82,14 +84,19 @@ function animate() {
     startJump();
   }
 
-  // Draw the pet image based on facing direction with flipping
-  if (facing === 1) {
-    ctx.save();
-    ctx.scale(-1, 1);
-    ctx.drawImage(petImgLeft, -petX - width, petY, width, height);
-    ctx.restore();
+  // If the pet is sleeping, show the sleeping image
+  if (isSleeping) {
+    ctx.drawImage(petImgSleep, petX, petY, width, height);
   } else {
-    ctx.drawImage(petImgLeft, petX, petY, width, height);
+    // Draw the pet image based on facing direction with flipping
+    if (facing === 1) {
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(petImgLeft, -petX - width, petY, width, height);
+      ctx.restore();
+    } else {
+      ctx.drawImage(petImgLeft, petX, petY, width, height);
+    }
   }
 
   requestAnimationFrame(animate);  // Continue animation loop
@@ -141,11 +148,25 @@ function sleepPet() {
   updateStats();
 }
 
-function healPet() {
-  pet.health = 100;
-  pet.happiness = Math.min(100, pet.happiness + 5);
-  updateStats();
+// Sleep functionality for the pet
+function sleep() {
+  if (!isSleeping) {
+    isSleeping = true;
+    petImgLeft.src = 'icon/pig-sleep.png'; // Switch to sleeping pig image
+
+    // Set timeout to sleep for 5 seconds
+    setTimeout(() => {
+      petImgLeft.src = 'icon/icon-192.png'; // Revert to original image
+      setTimeout(() => {
+        isSleeping = false; // Resume jumping after 2 seconds
+        startJump();
+      }, 2000);
+    }, 5000);
+  }
 }
+
+// Sleep button functionality
+document.getElementById('sleepButton').addEventListener('click', sleep);
 
 function registerBackgroundSync(tag) {
   if ('serviceWorker' in navigator && 'SyncManager' in window) {
