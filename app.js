@@ -19,7 +19,7 @@ window.addEventListener('resize', () => {
 
 // Constants for pet size
 const width = 102, height = 102;  // Actual image size (scaled down)
-const groundY = canvas.height - height ;  // Set ground to the bottom based on 102px image height
+const groundY = canvas.height - height;  // Set ground to the bottom based on 102px image height
 
 // Pet image
 let petImgLeft = new Image();
@@ -59,7 +59,7 @@ function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear previous frame
 
   if (isSleeping) {
-    // Draw the sleeping image instead of jumping
+    // Draw the sleeping image
     ctx.drawImage(petImgSleep, petX, petY, width, height);
   } else {
     // Gravity and movement
@@ -85,7 +85,7 @@ function animate() {
     // Bounce off ground
     if (petY >= groundY) {
       petY = groundY;
-      startJump();
+      startJump(); // Restart jump when hitting ground
     }
 
     // Draw the pet image based on facing direction with flipping
@@ -108,7 +108,6 @@ petImgLeft.onload = () => {
 };
 
 // --- Stats and interactions below (unchanged) ---
-
 let pet = {
   happiness: 50,
   hunger: 50,
@@ -153,13 +152,15 @@ function sleep() {
   if (!isSleeping) {
     isSleeping = true;
     petImgLeft.src = 'icon/pig-sleep.png'; // Switch to sleeping pig image
+    vy = 0; // Stop any vertical movement when the pet is sleeping
+    vx = 0; // Stop horizontal movement as well
 
     // Set timeout to sleep for 5 seconds
     setTimeout(() => {
       petImgLeft.src = 'icon/icon-192.png'; // Revert to original image
       setTimeout(() => {
         isSleeping = false; // Resume jumping after 2 seconds
-        startJump();  // Restart jumping after the sleep ends
+        startJump(); // Restart jumping after sleep
       }, 2000);
     }, 5000);
   }
@@ -210,14 +211,4 @@ function subscribeUserToPush() {
   });
 }
 
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
-}
-
-window.onload = () => {
-  updateStats();
-  askPushPermissionAndSubscribe();
-};
+fun
