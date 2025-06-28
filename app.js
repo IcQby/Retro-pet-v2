@@ -21,7 +21,7 @@ window.addEventListener('resize', () => {
 const width = 102, height = 102;  // Actual image size (scaled down)
 const groundY = canvas.height - height;  // Set ground to the bottom based on 102px image height
 
-// Pet image
+// Pet images
 let petImgLeft = new Image();
 petImgLeft.src = 'icon/icon-192.png';
 
@@ -34,6 +34,7 @@ let direction = -1, facing = -1;
 
 let sleeping = false;  // State to track if the pet is sleeping
 let jumpInProgress = false;  // To track if a jump is currently in progress
+let sleepTimeout, jumpTimeout;  // To manage sleep and jump timing
 
 // Function to start jumping
 function startJump() {
@@ -62,6 +63,11 @@ function animate() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear previous frame
 
+  if (sleeping) {
+    ctx.drawImage(petImgSleep, petX, petY, width, height);  // Show sleep image
+    return;  // Stop further movement during sleep
+  }
+
   // Gravity and movement
   vy += gravity;
   petX += vx;
@@ -86,14 +92,14 @@ function animate() {
   if (petY >= groundY) {
     petY = groundY;
     if (jumpInProgress && !sleeping) {
-      startJump();  // Continue jumping after landing
+      jumpInProgress = false;
+      // Initiate sleep after the jump finishes
+      sleepPet();
     }
   }
 
   // Draw the pet image based on the current state
-  if (sleeping) {
-    ctx.drawImage(petImgSleep, petX, petY, width, height);  // Show sleep image
-  } else if (facing === 1) {
+  if (facing === 1) {
     ctx.save();
     ctx.scale(-1, 1);
     ctx.drawImage(petImgLeft, -petX - width, petY, width, height);
@@ -113,21 +119,18 @@ petImgLeft.onload = () => {
 // Sleep function for the pet
 function sleepPet() {
   if (sleeping) return;  // Prevent triggering sleep if already sleeping
-  
-  // Finish the current jump first
-  if (jumpInProgress) {
-    jumpInProgress = false;
-    // Wait until pet touches the ground to transition to sleep
+
+  sleeping = true;  // Change to sleeping image
+  clearTimeout(sleepTimeout);  // Clear any existing timeout
+  clearTimeout(jumpTimeout);  // Clear jump timeout if exists
+
+  setTimeout(() => {
+    // Stay in sleep mode for 5 seconds
     setTimeout(() => {
-      sleeping = true;  // Change to sleeping image
-      setTimeout(() => {
-        sleeping = false;  // Revert back to jumping
-        setTimeout(() => {
-          startJump();  // Resume jumping after 2 seconds
-        }, 2000);
-      }, 5000);  // Stay in sleep mode for 5 seconds
-    }, Math.max(0, groundY - petY));  // Wait for the jump to land before sleeping
-  }
+      sleeping = false;  // Revert back to jumping
+      startJump();  // Resume jumping after 2 seconds
+    }, 2000);  // Resume jumping after 2 seconds
+  }, 5000);  // Stay in sleep mode for 5 seconds
 }
 
 // Button to trigger sleep (simulate button click)
