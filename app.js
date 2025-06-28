@@ -58,36 +58,36 @@ function animate() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear previous frame
 
-  // Gravity and movement
-  vy += gravity;
-  petX += vx;
-  petY += vy;
-
-  // Bounce off left wall
-  if (petX <= 0) {
-    petX = 0;
-    direction = 1;
-    facing = 1;
-    vx = Math.abs(vx);
-  }
-  // Bounce off right wall
-  else if (petX + width >= canvas.width) {
-    petX = canvas.width - width;
-    direction = -1;
-    facing = -1;
-    vx = -Math.abs(vx);
-  }
-
-  // Bounce off ground
-  if (petY >= groundY) {
-    petY = groundY;
-    startJump();
-  }
-
-  // If the pet is sleeping, show the sleeping image
   if (isSleeping) {
+    // Draw the sleeping image instead of jumping
     ctx.drawImage(petImgSleep, petX, petY, width, height);
   } else {
+    // Gravity and movement
+    vy += gravity;
+    petX += vx;
+    petY += vy;
+
+    // Bounce off left wall
+    if (petX <= 0) {
+      petX = 0;
+      direction = 1;
+      facing = 1;
+      vx = Math.abs(vx);
+    }
+    // Bounce off right wall
+    else if (petX + width >= canvas.width) {
+      petX = canvas.width - width;
+      direction = -1;
+      facing = -1;
+      vx = -Math.abs(vx);
+    }
+
+    // Bounce off ground
+    if (petY >= groundY) {
+      petY = groundY;
+      startJump();
+    }
+
     // Draw the pet image based on facing direction with flipping
     if (facing === 1) {
       ctx.save();
@@ -152,20 +152,14 @@ function sleepPet() {
 function sleep() {
   if (!isSleeping) {
     isSleeping = true;
-
-    // Switch to sleeping pig image
-    petImgLeft = petImgSleep;
+    petImgLeft.src = 'icon/pig-sleep.png'; // Switch to sleeping pig image
 
     // Set timeout to sleep for 5 seconds
     setTimeout(() => {
-      // Revert to original image
-      petImgLeft = new Image();
-      petImgLeft.src = 'icon/icon-192.png';
-
-      // After 2 seconds, resume jumping
+      petImgLeft.src = 'icon/icon-192.png'; // Revert to original image
       setTimeout(() => {
         isSleeping = false; // Resume jumping after 2 seconds
-        startJump();
+        startJump();  // Restart jumping after the sleep ends
       }, 2000);
     }, 5000);
   }
