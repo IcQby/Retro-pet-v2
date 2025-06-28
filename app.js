@@ -152,11 +152,17 @@ function sleepPet() {
 function sleep() {
   if (!isSleeping) {
     isSleeping = true;
-    petImgLeft.src = 'icon/pig-sleep.png'; // Switch to sleeping pig image
+
+    // Switch to sleeping pig image
+    petImgLeft = petImgSleep;
 
     // Set timeout to sleep for 5 seconds
     setTimeout(() => {
-      petImgLeft.src = 'icon/icon-192.png'; // Revert to original image
+      // Revert to original image
+      petImgLeft = new Image();
+      petImgLeft.src = 'icon/icon-192.png';
+
+      // After 2 seconds, resume jumping
       setTimeout(() => {
         isSleeping = false; // Resume jumping after 2 seconds
         startJump();
