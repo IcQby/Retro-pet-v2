@@ -24,19 +24,23 @@ const groundY = canvas.height - height;  // Set ground to the bottom based on 10
 // Pet image
 let petImgLeft = new Image();
 petImgLeft.src = 'icon/icon-192.png';
+
 let petImgSleep = new Image();
-petImgSleep.src = 'icon/pig-sleep.png'; // Image for sleeping pig
+petImgSleep.src = 'icon/pig-sleep.png';  // New image for sleeping state
 
 let petX = canvas.width - width - 10, petY = groundY; // inside canvas
 let vx = 0, vy = 0, gravity = 0.4;
 let direction = -1, facing = -1;
-let isSleeping = false; // Track sleep state
+
+let sleeping = false;  // State to track if the pet is sleeping
+let jumpInProgress = false;  // To track if a jump is currently in progress
 
 // Function to start jumping
 function startJump() {
   const speed = 6, angle = Math.PI * 65 / 180;
   vx = direction * speed * Math.cos(angle);
   vy = -speed * Math.sin(angle);
+  jumpInProgress = true;
 }
 
 startJump();
@@ -58,45 +62,44 @@ function animate() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear previous frame
 
-  if (isSleeping) {
-    // Draw the sleeping image
-    ctx.drawImage(petImgSleep, petX, petY, width, height);
+  // Gravity and movement
+  vy += gravity;
+  petX += vx;
+  petY += vy;
+
+  // Bounce off left wall
+  if (petX <= 0) {
+    petX = 0;
+    direction = 1;
+    facing = 1;
+    vx = Math.abs(vx);
+  }
+  // Bounce off right wall
+  else if (petX + width >= canvas.width) {
+    petX = canvas.width - width;
+    direction = -1;
+    facing = -1;
+    vx = -Math.abs(vx);
+  }
+
+  // Bounce off ground
+  if (petY >= groundY) {
+    petY = groundY;
+    if (jumpInProgress && !sleeping) {
+      startJump();  // Continue jumping after landing
+    }
+  }
+
+  // Draw the pet image based on the current state
+  if (sleeping) {
+    ctx.drawImage(petImgSleep, petX, petY, width, height);  // Show sleep image
+  } else if (facing === 1) {
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.drawImage(petImgLeft, -petX - width, petY, width, height);
+    ctx.restore();
   } else {
-    // Gravity and movement
-    vy += gravity;
-    petX += vx;
-    petY += vy;
-
-    // Bounce off left wall
-    if (petX <= 0) {
-      petX = 0;
-      direction = 1;
-      facing = 1;
-      vx = Math.abs(vx);
-    }
-    // Bounce off right wall
-    else if (petX + width >= canvas.width) {
-      petX = canvas.width - width;
-      direction = -1;
-      facing = -1;
-      vx = -Math.abs(vx);
-    }
-
-    // Bounce off ground
-    if (petY >= groundY) {
-      petY = groundY;
-      startJump(); // Restart jump when hitting ground
-    }
-
-    // Draw the pet image based on facing direction with flipping
-    if (facing === 1) {
-      ctx.save();
-      ctx.scale(-1, 1);
-      ctx.drawImage(petImgLeft, -petX - width, petY, width, height);
-      ctx.restore();
-    } else {
-      ctx.drawImage(petImgLeft, petX, petY, width, height);
-    }
+    ctx.drawImage(petImgLeft, petX, petY, width, height);
   }
 
   requestAnimationFrame(animate);  // Continue animation loop
@@ -107,7 +110,31 @@ petImgLeft.onload = () => {
   animate();
 };
 
+// Sleep function for the pet
+function sleepPet() {
+  if (sleeping) return;  // Prevent triggering sleep if already sleeping
+  
+  // Finish the current jump first
+  if (jumpInProgress) {
+    jumpInProgress = false;
+    // Wait until pet touches the ground to transition to sleep
+    setTimeout(() => {
+      sleeping = true;  // Change to sleeping image
+      setTimeout(() => {
+        sleeping = false;  // Revert back to jumping
+        setTimeout(() => {
+          startJump();  // Resume jumping after 2 seconds
+        }, 2000);
+      }, 5000);  // Stay in sleep mode for 5 seconds
+    }, Math.max(0, groundY - petY));  // Wait for the jump to land before sleeping
+  }
+}
+
+// Button to trigger sleep (simulate button click)
+document.getElementById('sleepButton').addEventListener('click', sleepPet);
+
 // --- Stats and interactions below (unchanged) ---
+
 let pet = {
   happiness: 50,
   hunger: 50,
@@ -141,33 +168,11 @@ function cleanPet() {
   updateStats();
 }
 
-function sleepPet() {
-  pet.health = Math.min(100, pet.health + 10);
-  pet.hunger = Math.min(100, pet.hunger + 10);
+function healPet() {
+  pet.health = 100;
+  pet.happiness = Math.min(100, pet.happiness + 5);
   updateStats();
 }
-
-// Sleep functionality for the pet
-function sleep() {
-  if (!isSleeping) {
-    isSleeping = true;
-    petImgLeft.src = 'icon/pig-sleep.png'; // Switch to sleeping pig image
-    vy = 0; // Stop any vertical movement when the pet is sleeping
-    vx = 0; // Stop horizontal movement as well
-
-    // Set timeout to sleep for 5 seconds
-    setTimeout(() => {
-      petImgLeft.src = 'icon/icon-192.png'; // Revert to original image
-      setTimeout(() => {
-        isSleeping = false; // Resume jumping after 2 seconds
-        startJump(); // Restart jumping after sleep
-      }, 2000);
-    }, 5000);
-  }
-}
-
-// Sleep button functionality
-document.getElementById('sleepButton').addEventListener('click', sleep);
 
 function registerBackgroundSync(tag) {
   if ('serviceWorker' in navigator && 'SyncManager' in window) {
@@ -211,4 +216,14 @@ function subscribeUserToPush() {
   });
 }
 
-fun
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+}
+
+window.onload = () => {
+  updateStats();
+  askPushPermissionAndSubscribe();
+};
