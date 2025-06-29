@@ -1,48 +1,33 @@
+```javascript name=app.js
 const canvas = document.getElementById('pet-canvas');
 const ctx = canvas.getContext('2d');
 
-// Resize canvas to fit the window
+// Constants for pet size
+const width = 102, height = 102;  // Actual image size (scaled down)
+
+// Pet image
+let petImgLeft = new Image();
+petImgLeft.src = 'icon/icon-192.png';
+
+// Pet state variables
+let petX = 0, petY = 0, vx = 0, vy = 0, gravity = 0.4;
+let direction = -1, facing = -1;
+let groundY = 0;
+
+// Resize canvas to fit the window and update groundY and pet position
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = 300;  // Fixed height for the canvas (300 pixels)
-}
-resizeCanvas();
-
-// Keep canvas resized when window is resized
-window.addEventListener('resize', () => {
-  resizeCanvas();
-  // Keep pet inside canvas after resize
+  groundY = canvas.height - height;
   if (petX + width > canvas.width) {
     petX = canvas.width - width;
   }
-});
-
-// Constants for pet size
-const width = 102, height = 102;  // Actual image size (scaled down)
-const groundY = canvas.height - height ;  // Set ground to the bottom based on 102px image height
-
-// Pet images
-let petImgLeft = new Image();
-let petImgRight = new Image();
-petImgLeft.src = 'icon/pig-left.png';  // Path to pig-left.png image
-petImgRight.src = 'icon/pig-right.png';  // Path to pig-right.png image
-
-// Image handling
-let currentImage = petImgLeft; // Start with pig-left image
-
-petImgLeft.onload = () => {
-  console.log('Left Image Loaded');
-  animate();  // Start animation once image is loaded
-};
-
-petImgRight.onload = () => {
-  console.log('Right Image Loaded');
-};
-
-// Initialize pet position
-let petX = canvas.width - width - 10, petY = groundY; // inside canvas
-let vx = 0, vy = 0, gravity = 0.4;
-let direction = -1;
+  if (petY > groundY) {
+    petY = groundY;
+  }
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
 // Function to start jumping
 function startJump() {
@@ -51,24 +36,30 @@ function startJump() {
   vy = -speed * Math.sin(angle);
 }
 
-startJump();
+// Set pet initial position based on canvas size
+function setupPet() {
+  petX = canvas.width - width - 10;
+  petY = groundY;
+  startJump();
+}
+setupPet();
+window.addEventListener('resize', setupPet);
 
 // Draw background with pastel green (ground) and light blue (air)
 function drawBackground() {
-  // Ground (pastel green)
-  ctx.fillStyle = '#90EE90';  // Pastel green color for the ground
-  ctx.fillRect(0, canvas.height * 2 / 3, canvas.width, canvas.height / 3);
-
   // Air (light blue)
   ctx.fillStyle = '#ADD8E6';  // Light blue color for the sky
   ctx.fillRect(0, 0, canvas.width, canvas.height * 2 / 3);
+
+  // Ground (pastel green)
+  ctx.fillStyle = '#90EE90';  // Pastel green color for the ground
+  ctx.fillRect(0, canvas.height * 2 / 3, canvas.width, canvas.height / 3);
 }
 
 // Animation function
 function animate() {
-  drawBackground();  // Draw the background first (not influenced by anything else)
-
   ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear previous frame
+  drawBackground();  // Draw the background
 
   // Gravity and movement
   vy += gravity;
@@ -78,16 +69,16 @@ function animate() {
   // Bounce off left wall
   if (petX <= 0) {
     petX = 0;
-    direction = 1;  // Switch direction
-    currentImage = petImgRight; // Change to pig-right image
-    vx = Math.abs(vx);  // Move right
+    direction = 1;
+    facing = 1;
+    vx = Math.abs(vx);
   }
   // Bounce off right wall
   else if (petX + width >= canvas.width) {
     petX = canvas.width - width;
-    direction = -1;  // Switch direction
-    currentImage = petImgLeft; // Change to pig-left image
-    vx = -Math.abs(vx);  // Move left
+    direction = -1;
+    facing = -1;
+    vx = -Math.abs(vx);
   }
 
   // Bounce off ground
@@ -96,11 +87,23 @@ function animate() {
     startJump();
   }
 
-  // Draw the pet image (based on direction)
-  ctx.drawImage(currentImage, petX, petY, width, height);
+  // Draw the pet image based on facing direction with flipping
+  if (facing === 1) {
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.drawImage(petImgLeft, -petX - width, petY, width, height);
+    ctx.restore();
+  } else {
+    ctx.drawImage(petImgLeft, petX, petY, width, height);
+  }
 
   requestAnimationFrame(animate);  // Continue animation loop
 }
+
+// Start animation once image is loaded
+petImgLeft.onload = () => {
+  animate();
+};
 
 // --- Stats and interactions below (unchanged) ---
 
@@ -161,6 +164,45 @@ function registerBackgroundSync(tag) {
   }
 }
 
+function askPushPermissionAndSubscribe() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.log('Push messaging not supported');
+    return;
+  }
+
+  Notification.requestPermission().then(permission => {
+    if (permission === 'granted') {
+      subscribeUserToPush();
+    } else {
+      console.log('Push permission denied');
+    }
+  });
+}
+
+function subscribeUserToPush() {
+  navigator.serviceWorker.ready.then(registration => {
+    const vapidPublicKey = 'BOrX-ZnfnDcU7wXcmnI7kVvIVFQeZzxpDvLrFqXdeB-lKQAzP8Hy2LqzWdN-s2Yfr3Kr-Q8OjQ_k3X1KNk1-7LI';
+    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+    registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedVapidKey
+    }).then(subscription => {
+      console.log('User subscribed to push:', subscription);
+    }).catch(err => {
+      console.log('Failed to subscribe user:', err);
+    });
+  });
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+}
+
 window.onload = () => {
   updateStats();
+  askPushPermissionAndSubscribe();
 };
+```
