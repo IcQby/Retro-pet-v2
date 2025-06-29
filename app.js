@@ -2,78 +2,25 @@
 const canvas = document.getElementById('pet-canvas');
 const ctx = canvas.getContext('2d');
 
-// Make sure canvas buffer matches CSS size for sharp rendering
-function resizeCanvas() {
-  canvas.width = canvas.offsetWidth;
-  canvas.height = 300; // matches the CSS height
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-
-// Image assets
-const pigLeft = new Image();
-pigLeft.src = "icon/pig-left.png";
-
-const pigRight = new Image();
-pigRight.src = "icon/pig-right.png";
-
-// Pet state
-let pet = {
-  x: 150,
-  y: 200,
-  direction: "right", // "left" or "right"
-  mood: "happy"
+// Stat points example
+let statPoints = {
+  hunger: 5,
+  happiness: 7,
+  energy: 8
 };
 
-// Draw the pig
-function drawPet() {
-  // Clear canvas
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+// Function to display stat points on screen
+function drawStats() {
+  // Clear only the stats area (top of canvas)
+  ctx.clearRect(0, 0, canvas.width, 50);
 
-  // Optionally, re-draw the background here if your canvas background is JS-drawn.
-  // But if you're using CSS background, you don't need to.
-
-  // Draw pig
-  if (pet.direction === "left" && pigLeft.complete) {
-    ctx.drawImage(
-      pigLeft,
-      pet.x - pigLeft.width / 2,
-      pet.y - pigLeft.height / 2
-    );
-  } else if (pet.direction === "right" && pigRight.complete) {
-    ctx.drawImage(
-      pigRight,
-      pet.x - pigRight.width / 2,
-      pet.y - pigRight.height / 2
-    );
-  }
+  ctx.font = "20px monospace";
+  ctx.fillStyle = "#0f0";
+  ctx.textAlign = "left";
+  ctx.fillText(`Hunger: ${statPoints.hunger}`, 16, 28);
+  ctx.fillText(`Happiness: ${statPoints.happiness}`, 156, 28);
+  ctx.fillText(`Energy: ${statPoints.energy}`, 336, 28);
 }
 
-// Redraw when image is loaded
-pigLeft.onload = pigRight.onload = drawPet;
-
-// Controls
-document.getElementById("left-btn").onclick = function() {
-  pet.direction = "left";
-  pet.x = Math.max(pet.x - 20, pigLeft.width / 2);
-  drawPet();
-};
-document.getElementById("right-btn").onclick = function() {
-  pet.direction = "right";
-  pet.x = Math.min(
-    pet.x + 20,
-    canvas.width - pigRight.width / 2
-  );
-  drawPet();
-};
-
-// Initial draw (in case images are cached)
-window.onload = () => {
-  drawPet();
-};
-
-// Optionally, handle window resize to redraw pet at correct position
-window.addEventListener('resize', () => {
-  resizeCanvas();
-  drawPet();
-});
+// Initial call to draw stats
+drawStats();
