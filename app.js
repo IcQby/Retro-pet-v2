@@ -30,6 +30,7 @@ let sleepSequenceTimer = null;
 let currentImg;
 let sleepResumeDirection = direction;
 let sleepResumeImg;
+let wakeHold = false;
 
 // --- Stats Logic ---
 let pet = {
@@ -89,32 +90,27 @@ function runSleepSequence() {
   sleepRequested = false;
   vx = 0; vy = 0;
 
-  // 1. Stay still for 1s (facing direction at time of sleep press)
   let originalImg = sleepResumeImg;
   let oppositeImg = (sleepResumeImg === petImgRight) ? petImgLeft : petImgRight;
   currentImg = originalImg;
 
   setTimeout(() => {
-    // 2. Switch to opposite image
     currentImg = oppositeImg;
     setTimeout(() => {
-      // 3. Switch back to original
       currentImg = originalImg;
       setTimeout(() => {
-        // 4. Switch to opposite again
         currentImg = oppositeImg;
         setTimeout(() => {
-          // 5. Switch to sleep image for 5s
           currentImg = petImgSleep;
           isSleeping = true;
           sleepSequenceActive = false;
           setTimeout(() => {
-            // 6. For 2s, switch to the image pig was facing/going when sleep was pressed
+            // Hold still for 2s as original facing
             currentImg = originalImg;
             isSleeping = false;
-            sleepSequenceActive = true; // Prevent movement for 2s
+            wakeHold = true; // <-- pig remains still for 2s
             setTimeout(() => {
-              // 7. Resume jumping in the original direction
+              wakeHold = false;
               sleepSequenceActive = false;
               direction = sleepResumeDirection;
               currentImg = (direction === 1) ? petImgRight : petImgLeft;
@@ -145,14 +141,15 @@ function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
 
-  if (!isSleeping && !sleepSequenceActive) {
+  // Only move if not sleeping, not in sleep sequence, and not in wakeHold
+  if (!isSleeping && !sleepSequenceActive && !wakeHold) {
     vy += gravity;
     petX += vx;
     petY += vy;
   }
 
   // Walls
-  if (!isSleeping && !sleepSequenceActive) {
+  if (!isSleeping && !sleepSequenceActive && !wakeHold) {
     if (petX <= 0) {
       petX = 0;
       direction = 1;
@@ -170,9 +167,10 @@ function animate() {
   let groundY = canvas.height - height;
   if (petY >= groundY) {
     petY = groundY;
-    if (sleepRequested && !sleepSequenceActive) {
+    // Only run sleep if just requested and not in sequence or hold
+    if (sleepRequested && !sleepSequenceActive && !wakeHold) {
       runSleepSequence();
-    } else if (!isSleeping && !sleepSequenceActive && !sleepRequested) {
+    } else if (!isSleeping && !sleepSequenceActive && !sleepRequested && !wakeHold) {
       startJump();
     }
   }
