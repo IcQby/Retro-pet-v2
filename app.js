@@ -15,9 +15,11 @@ const width = 102, height = 102;
 const petImgLeft = new Image();
 const petImgRight = new Image();
 const petImgSleep = new Image();
+const petImgSleepR = new Image();
 petImgLeft.src = 'icon/pig-left.png';
 petImgRight.src = 'icon/pig-right.png';
 petImgSleep.src = 'icon/pig-sleep.png';
+petImgSleepR.src = 'icon/pig-sleepR.png';
 
 // --- Pet Animation State ---
 let petX, petY;
@@ -84,7 +86,7 @@ window.healPet = function() {
   updateStats();
 };
 
-// --- Sleep Sequence Logic (as specified) ---
+// --- Sleep Sequence Logic (as specified, now with direction-aware sleep image) ---
 function runSleepSequence() {
   sleepSequenceActive = true;
   sleepRequested = false;
@@ -92,6 +94,8 @@ function runSleepSequence() {
 
   let originalImg = sleepResumeImg;
   let oppositeImg = (sleepResumeImg === petImgRight) ? petImgLeft : petImgRight;
+  // Use sleep image based on direction
+  let sleepImg = (sleepResumeDirection === 1) ? petImgSleepR : petImgSleep;
   currentImg = originalImg;
 
   setTimeout(() => {
@@ -101,7 +105,7 @@ function runSleepSequence() {
       setTimeout(() => {
         currentImg = oppositeImg;
         setTimeout(() => {
-          currentImg = petImgSleep;
+          currentImg = sleepImg;
           isSleeping = true;
           sleepSequenceActive = false;
           setTimeout(() => {
@@ -188,7 +192,7 @@ function registerBackgroundSync(tag) {
 let imagesLoaded = 0;
 function onImgLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 3) {
+  if (imagesLoaded === 4) {
     petX = canvas.width - width - 10;
     petY = canvas.height - height;
     direction = -1;
@@ -200,6 +204,7 @@ function onImgLoad() {
 petImgLeft.onload = onImgLoad;
 petImgRight.onload = onImgLoad;
 petImgSleep.onload = onImgLoad;
+petImgSleepR.onload = onImgLoad;
 
 window.addEventListener('DOMContentLoaded', () => {
   updateStats();
