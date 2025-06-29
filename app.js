@@ -11,27 +11,27 @@ resizeCanvas();
 // Keep canvas resized when window is resized
 window.addEventListener('resize', () => {
   resizeCanvas();
-  // Keep pet inside canvas after resize
   if (petX + width > canvas.width) {
     petX = canvas.width - width;
   }
 });
 
 // Constants for pet size
-const width = 102, height = 102;  // Actual image size (scaled down)
-const groundY = canvas.height - height ;  // Set ground to the bottom based on 102px image height
+const width = 102, height = 102;
+const groundY = canvas.height - height;
 
-// Pet image
+// Pet images
 let petImgLeft = new Image();
 petImgLeft.src = 'icon/icon-192.png';
+let petImgSleep = new Image();
+petImgSleep.src = 'icon/pig-sleep.png';
 
-let petX = canvas.width - width - 10, petY = groundY; // inside canvas
+// Variables for pet movement and state
+let petX = canvas.width - width - 10, petY = groundY;
 let vx = 0, vy = 0, gravity = 0.4;
 let direction = -1, facing = -1;
-
-let sleeping = false;  // State to track if the pet is sleeping
-let jumpInProgress = false;  // To track if a jump is currently in progress
-let health = 50;  // Starting health
+let jumping = true;  // Indicates if the pig is currently jumping
+let sleeping = false; // Indicates if the pig is in sleep mode
 
 // Function to start jumping
 function startJump() {
@@ -40,27 +40,23 @@ function startJump() {
   vy = -speed * Math.sin(angle);
 }
 
-startJump();
-
 // Draw background with pastel green (ground) and light blue (air)
 function drawBackground() {
-  // Ground (pastel green)
-  ctx.fillStyle = '#90EE90';  // Pastel green color for the ground
+  ctx.fillStyle = '#90EE90';  // Ground (pastel green)
   ctx.fillRect(0, canvas.height * 2 / 3, canvas.width, canvas.height / 3);
 
-  // Air (light blue)
-  ctx.fillStyle = '#ADD8E6';  // Light blue color for the sky
+  ctx.fillStyle = '#ADD8E6';  // Air (light blue)
   ctx.fillRect(0, 0, canvas.width, canvas.height * 2 / 3);
 }
 
 // Animation function
 function animate() {
-  drawBackground();  // Draw the background first
+  drawBackground();
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear previous frame
 
   if (sleeping) {
-    ctx.drawImage(petImgLeft, petX, petY, width, height);  // Show sleeping image (same as jumping for simplicity)
+    ctx.drawImage(petImgSleep, petX, petY, width, height);  // Show sleeping pet
     return;  // Stop further movement during sleep
   }
 
@@ -84,13 +80,13 @@ function animate() {
     vx = -Math.abs(vx);
   }
 
-  // Bounce off ground
+  // Bounce off ground and start jumping again
   if (petY >= groundY) {
     petY = groundY;
-    startJump();
+    if (jumping) startJump(); // Start jumping again after landing
   }
 
-  // Draw the pet image based on facing direction with flipping
+  // Draw the pet image based on facing direction
   if (facing === 1) {
     ctx.save();
     ctx.scale(-1, 1);
@@ -105,8 +101,26 @@ function animate() {
 
 // Start animation once image is loaded
 petImgLeft.onload = () => {
-  animate();
+  petImgSleep.onload = () => {
+    animate();
+  };
 };
+
+// Sleep button functionality
+document.getElementById('sleepButton').addEventListener('click', () => {
+  if (!sleeping) {
+    jumping = false;  // Stop jumping when sleep is triggered
+    sleeping = true;  // Start sleep animation
+
+    setTimeout(() => {
+      // After 5 seconds, wake up and resume jumping
+      sleeping = false;
+      jumping = true;
+      startJump();  // Start jumping after sleep
+    }, 5000);  // Sleep duration (5 seconds)
+  }
+});
+
 
 // --- Stats and interactions below (unchanged) ---
 
