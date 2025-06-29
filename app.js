@@ -1,5 +1,10 @@
+// ```javascript name=app.js
 const canvas = document.getElementById('pet-canvas');
 const ctx = canvas.getContext('2d');
+
+// Constants for pet size and scaling
+const PET_ORIGINAL_SIZE = 204; // original image is 204x204
+const width = 102, height = 102; // display size is 102x102
 
 // Resize canvas to fit the window
 function resizeCanvas() {
@@ -17,13 +22,12 @@ window.addEventListener('resize', () => {
   }
 });
 
-// Constants for pet size
-const width = 102, height = 102;  // Actual image size (scaled down)
-const groundY = canvas.height - height ;  // Set ground to the bottom based on 102px image height
+// Set ground to the bottom based on displayed image height
+let groundY = canvas.height - height;
 
 // Pet image
-let petImgLeft = new window.Image(); // Ensure using window.Image for compatibility
-petImgLeft.src = './icon/pig-left.png'; // Use a relative path with './' for reliability
+let petImgLeft = new window.Image();
+petImgLeft.src = './icon/pig-left.png';
 
 let petX = canvas.width - width - 10, petY = groundY; // inside canvas
 let vx = 0, vy = 0, gravity = 0.4;
@@ -75,20 +79,29 @@ function animate() {
   }
 
   // Bounce off ground
+  groundY = canvas.height - height;
   if (petY >= groundY) {
     petY = groundY;
     startJump();
   }
 
   // Draw the pet image based on facing direction with flipping
-  if (petImgLeft.complete && petImgLeft.naturalWidth !== 0) { // Only attempt to draw if loaded
+  if (petImgLeft.complete && petImgLeft.naturalWidth !== 0) {
     if (facing === 1) {
       ctx.save();
       ctx.scale(-1, 1);
-      ctx.drawImage(petImgLeft, -petX - width, petY, width, height);
+      ctx.drawImage(
+        petImgLeft,
+        0, 0, PET_ORIGINAL_SIZE, PET_ORIGINAL_SIZE, // source: top-left crop of the image
+        -petX - width, petY, width, height           // destination: scaled to 102x102
+      );
       ctx.restore();
     } else {
-      ctx.drawImage(petImgLeft, petX, petY, width, height);
+      ctx.drawImage(
+        petImgLeft,
+        0, 0, PET_ORIGINAL_SIZE, PET_ORIGINAL_SIZE, // source: top-left crop of the image
+        petX, petY, width, height                   // destination: scaled to 102x102
+      );
     }
   }
   requestAnimationFrame(animate);  // Continue animation loop
@@ -98,13 +111,77 @@ function animate() {
 petImgLeft.onload = () => {
   animate();
 };
-
 // In case the image is cached and already loaded
 if (petImgLeft.complete && petImgLeft.naturalWidth !== 0) {
   animate();
 }
 
 // --- Stats and interactions below (unchanged) ---
+
 let pet = {
-  // ...rest of your code
+  happiness: 50,
+  hunger: 50,
+  cleanliness: 50,
+  health: 50,
 };
+
+function updateStats() {
+  document.getElementById('happiness').textContent = pet.happiness;
+  document.getElementById('hunger').textContent = pet.hunger;
+  document.getElementById('cleanliness').textContent = pet.cleanliness;
+  document.getElementById('health').textContent = pet.health;
+}
+
+function clamp(val) {
+  return Math.max(0, Math.min(100, val));
+}
+
+function feedPet() {
+  pet.hunger = clamp(pet.hunger + 15);
+  pet.happiness = clamp(pet.happiness + 5);
+  updateStats();
+}
+
+function playWithPet() {
+  pet.happiness = clamp(pet.happiness + 15);
+  pet.hunger = clamp(pet.hunger - 5);
+  pet.cleanliness = clamp(pet.cleanliness - 5);
+  updateStats();
+}
+
+function cleanPet() {
+  pet.cleanliness = clamp(pet.cleanliness + 20);
+  pet.happiness = clamp(pet.happiness + 2);
+  updateStats();
+}
+
+function sleepPet() {
+  pet.health = clamp(pet.health + 10);
+  pet.happiness = clamp(pet.happiness + 3);
+  pet.hunger = clamp(pet.hunger - 7);
+  updateStats();
+}
+
+function healPet() {
+  pet.health = clamp(pet.health + 25);
+  pet.happiness = clamp(pet.happiness - 5);
+  updateStats();
+}
+
+// Simulate pet stats decay over time
+setInterval(() => {
+  pet.happiness = clamp(pet.happiness - 1);
+  pet.hunger = clamp(pet.hunger - 1);
+  pet.cleanliness = clamp(pet.cleanliness - 1);
+  pet.health = clamp(pet.health - (pet.hunger < 20 ? 2 : 0));
+  updateStats();
+}, 3000);
+
+window.feedPet = feedPet;
+window.playWithPet = playWithPet;
+window.cleanPet = cleanPet;
+window.sleepPet = sleepPet;
+window.healPet = healPet;
+
+updateStats();
+```
