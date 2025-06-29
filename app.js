@@ -12,9 +12,9 @@ window.addEventListener('resize', resizeCanvas);
 
 // --- Pet Images ---
 const width = 102, height = 102;
-let petImgLeft = new Image();
-let petImgRight = new Image();
-let petImgSleep = new Image();
+const petImgLeft = new Image();
+const petImgRight = new Image();
+const petImgSleep = new Image();
 petImgLeft.src = 'icon/pig-left.png';
 petImgRight.src = 'icon/pig-right.png';
 petImgSleep.src = 'icon/pig-sleep.png';
@@ -28,9 +28,10 @@ let sleepSequenceActive = false;
 let sleepRequested = false;
 let sleepSequenceStep = 0;
 let sleepSequenceTimer = null;
-let currentImg = petImgLeft;
+let currentImg; // Will be set after images load
 let resumeDirection = direction;
-let resumeImg = currentImg;
+let resumeImg;
+let imagesLoaded = 0;
 
 // --- Stats Logic ---
 let pet = {
@@ -177,65 +178,26 @@ function animate() {
 
 // --- Background Sync & Push ---
 function registerBackgroundSync(tag) {
-  if ('serviceWorker' in navigator && 'SyncManager' in window) {
-    navigator.serviceWorker.ready.then(registration => {
-      registration.sync.register(tag).then(() => {
-        console.log(`Background sync registered for ${tag}`);
-      }).catch(err => {
-        console.log('Background sync registration failed:', err);
-      });
-    });
-  }
-}
-function askPushPermissionAndSubscribe() {
-  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.log('Push messaging not supported');
-    return;
-  }
-  Notification.requestPermission().then(permission => {
-    if (permission === 'granted') {
-      subscribeUserToPush();
-    } else {
-      console.log('Push permission denied');
-    }
-  });
-}
-function subscribeUserToPush() {
-  navigator.serviceWorker.ready.then(registration => {
-    const vapidPublicKey = 'BOrX-ZnfnDcU7wXcmnI7kVvIVFQeZzxpDvLrFqXdeB-lKQAzP8Hy2LqzWdN-s2Yfr3Kr-Q8OjQ_k3X1KNk1-7LI';
-    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
-    registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: convertedVapidKey
-    }).then(subscription => {
-      console.log('User subscribed to push:', subscription);
-    }).catch(err => {
-      console.log('Failed to subscribe user:', err);
-    });
-  });
-}
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+  // (No-op for demo)
 }
 
 // --- Start Everything ---
-Promise.all([
-  new Promise(resolve => petImgLeft.onload = resolve),
-  new Promise(resolve => petImgRight.onload = resolve),
-  new Promise(resolve => petImgSleep.onload = resolve)
-]).then(() => {
-  petX = canvas.width - width - 10;
-  petY = canvas.height - height;
-  direction = -1;
-  currentImg = petImgLeft;
-  updateStats();
-  animate();
-});
+// Only start animation after all 3 images are loaded!
+function onImgLoad() {
+  imagesLoaded++;
+  if (imagesLoaded === 3) {
+    petX = canvas.width - width - 10;
+    petY = canvas.height - height;
+    direction = -1;
+    currentImg = petImgLeft;
+    updateStats();
+    animate();
+  }
+}
+petImgLeft.onload = onImgLoad;
+petImgRight.onload = onImgLoad;
+petImgSleep.onload = onImgLoad;
 
 window.addEventListener('DOMContentLoaded', () => {
   updateStats();
-  askPushPermissionAndSubscribe();
 });
