@@ -1,5 +1,6 @@
 const canvas = document.getElementById('pet-canvas');
 const ctx = canvas.getContext('2d');
+const statsElement = document.getElementById('stats');
 
 // Resize canvas to fit the window
 function resizeCanvas() {
@@ -11,7 +12,6 @@ resizeCanvas();
 // Keep canvas resized when window is resized
 window.addEventListener('resize', () => {
   resizeCanvas();
-  // Keep pet inside canvas after resize
   if (petX + width > canvas.width) {
     petX = canvas.width - width;
   }
@@ -23,10 +23,9 @@ const groundY = canvas.height - height;  // Set ground to the bottom based on 10
 
 // Pet images
 let petImgLeft = new Image();
-petImgLeft.src = 'icon/icon-192.png';
-
+petImgLeft.src = 'icon/icon-192.png';  // Replace with the actual path
 let petImgSleep = new Image();
-petImgSleep.src = 'icon/pig-sleep.png';  // New image for sleeping state
+petImgSleep.src = 'icon/pig-sleep.png';  // Replace with the actual path
 
 let petX = canvas.width - width - 10, petY = groundY; // inside canvas
 let vx = 0, vy = 0, gravity = 0.4;
@@ -34,6 +33,7 @@ let direction = -1, facing = -1;
 
 let sleeping = false;  // State to track if the pet is sleeping
 let jumpInProgress = false;  // To track if a jump is currently in progress
+let health = 50;  // Starting health
 
 // Draw background with pastel green (ground) and light blue (air)
 function drawBackground() {
@@ -108,6 +108,9 @@ function animate() {
   } else {
     ctx.drawImage(petImgLeft, petX, petY, width, height);
   }
+
+  // Update health stats display
+  statsElement.innerText = `Stats: Health ${health}`;
 
   requestAnimationFrame(animate);  // Continue animation loop
 }
