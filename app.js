@@ -5,6 +5,7 @@ const ctx = canvas.getContext('2d');
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = 300;  // Fixed height for the canvas (300 pixels)
+  console.log(`Canvas resized: Width: ${canvas.width}, Height: ${canvas.height}`);
 }
 resizeCanvas();
 
@@ -27,6 +28,7 @@ petImgRight.src = 'icon/pig-right.png';  // Changed to pig-right.png
 
 petImgRight.onload = () => {
   console.log('Pet image loaded successfully.');
+  console.log(`Pet image dimensions: Width: ${petImgRight.width}, Height: ${petImgRight.height}`);
   animate();  // Start animation once image is loaded
 };
 
@@ -69,6 +71,8 @@ function animate() {
   petX += vx;
   petY += vy;
 
+  console.log(`Pet coordinates: X: ${petX}, Y: ${petY}`);  // Log pet coordinates
+
   // Bounce off left wall
   if (petX <= 0) {
     petX = 0;
@@ -88,7 +92,7 @@ function animate() {
     startJump();
   }
 
-  // Draw the pet image without flipping (always facing right)
+  // Draw the pet image (without flipping, always facing right)
   ctx.drawImage(petImgRight, petX, petY, width, height);
 
   requestAnimationFrame(animate);  // Continue animation loop
