@@ -1,3 +1,4 @@
+// javascript name=app.js
 // app.js
 
 // Get the canvas and context
@@ -7,8 +8,8 @@ const ctx = canvas.getContext('2d');
 // Images for pig facing left and right
 const pigLeftImg = new Image();
 const pigRightImg = new Image();
-pigLeftImg.src = 'pig-left.png';
-pigRightImg.src = 'pig-right.png';
+pigLeftImg.src = 'icon/pig-left.png';
+pigRightImg.src = 'icon/pig-right.png';
 
 // Pig state
 let pig = {
@@ -27,6 +28,19 @@ let pig = {
 
 const jumpInterval = 60; // frames between jumps
 const jumpDuration = 30; // frames jump lasts
+
+// Responsive canvas: resize and keep pig on ground
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = 300;
+  // Keep pig on ground after resizing
+  if (pig.x + pig.width > canvas.width) {
+    pig.x = canvas.width - pig.width;
+  }
+  pig.y = canvas.height - pig.height - 34; // keeps pig on ground
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 // Wait for images to load before starting animation
 let imagesLoaded = 0;
@@ -58,11 +72,15 @@ function update() {
     pig.y += pig.vy;
     pig.jumpTimer++;
     // End jump after jumpDuration frames or landing
-    if (pig.jumpTimer > jumpDuration || pig.y > 200) {
-      pig.y = 200;
+    let groundY = canvas.height - pig.height - 34;
+    if (pig.jumpTimer > jumpDuration || pig.y > groundY) {
+      pig.y = groundY;
       pig.vy = 0;
       pig.jumping = false;
     }
+  } else {
+    // Always keep pig on ground if not jumping
+    pig.y = canvas.height - pig.height - 34;
   }
 
   // Bounce off walls and change direction/image
@@ -79,7 +97,15 @@ function update() {
 }
 
 function draw() {
+  // Draw background (optional, add a simple ground)
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Sky
+  ctx.fillStyle = '#ADD8E6';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Ground
+  ctx.fillStyle = '#90EE90';
+  ctx.fillRect(0, canvas.height - 34, canvas.width, 34);
+
   if (pig.direction === 'right') {
     ctx.drawImage(pigRightImg, pig.x, pig.y, pig.width, pig.height);
   } else {
@@ -92,3 +118,4 @@ function loop() {
   draw();
   requestAnimationFrame(loop);
 }
+```
