@@ -25,9 +25,18 @@ const groundY = canvas.height - height ;  // Set ground to the bottom based on 1
 let petImgRight = new Image();
 petImgRight.src = 'icon/pig-right.png';  // Changed to pig-right.png
 
+petImgRight.onload = () => {
+  console.log('Pet image loaded successfully.');
+  animate();  // Start animation once image is loaded
+};
+
+petImgRight.onerror = () => {
+  console.error('Failed to load pet image.');
+};
+
 let petX = canvas.width - width - 10, petY = groundY; // inside canvas
 let vx = 0, vy = 0, gravity = 0.4;
-let direction = -1, facing = -1;
+let direction = -1;
 
 // Function to start jumping
 function startJump() {
@@ -85,11 +94,6 @@ function animate() {
   requestAnimationFrame(animate);  // Continue animation loop
 }
 
-// Start animation once image is loaded
-petImgRight.onload = () => {
-  animate();
-};
-
 // --- Stats and interactions below (unchanged) ---
 
 let pet = {
@@ -100,6 +104,9 @@ let pet = {
 };
 
 function updateStats() {
+  // Debugging stats
+  console.log('Updating stats:', pet);
+
   document.getElementById('happiness').textContent = pet.happiness;
   document.getElementById('hunger').textContent = pet.hunger;
   document.getElementById('cleanliness').textContent = pet.cleanliness;
