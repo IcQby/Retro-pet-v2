@@ -5,7 +5,6 @@ const ctx = canvas.getContext('2d');
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = 300;  // Fixed height for the canvas (300 pixels)
-  console.log(`Canvas resized: Width: ${canvas.width}, Height: ${canvas.height}`);
 }
 resizeCanvas();
 
@@ -22,20 +21,22 @@ window.addEventListener('resize', () => {
 const width = 102, height = 102;  // Actual image size (scaled down)
 const groundY = canvas.height - height ;  // Set ground to the bottom based on 102px image height
 
-// Pet image
+// Pet images
+let petImgLeft = new Image();
 let petImgRight = new Image();
+petImgLeft.src = 'icon/pig-left.png';  // Path to pig-left.png image
 petImgRight.src = 'icon/pig-right.png';  // Path to pig-right.png image
 
-// Check if the image loaded correctly
-petImgRight.onload = () => {
-  console.log('Pet image loaded successfully.');
-  console.log(`Pet image dimensions: Width: ${petImgRight.width}, Height: ${petImgRight.height}`);
+// Image handling
+let currentImage = petImgLeft; // Start with pig-left image
+
+petImgLeft.onload = () => {
+  console.log('Left Image Loaded');
   animate();  // Start animation once image is loaded
 };
 
-petImgRight.onerror = () => {
-  console.error('Failed to load pet image. Check the path.');
-  // Use a fallback image if needed (you could also add a default image here)
+petImgRight.onload = () => {
+  console.log('Right Image Loaded');
 };
 
 // Initialize pet position
@@ -74,19 +75,19 @@ function animate() {
   petX += vx;
   petY += vy;
 
-  console.log(`Pet coordinates: X: ${petX}, Y: ${petY}`);  // Log pet coordinates
-
   // Bounce off left wall
   if (petX <= 0) {
     petX = 0;
-    direction = 1;
-    vx = Math.abs(vx);
+    direction = 1;  // Switch direction
+    currentImage = petImgRight; // Change to pig-right image
+    vx = Math.abs(vx);  // Move right
   }
   // Bounce off right wall
   else if (petX + width >= canvas.width) {
     petX = canvas.width - width;
-    direction = -1;
-    vx = -Math.abs(vx);
+    direction = -1;  // Switch direction
+    currentImage = petImgLeft; // Change to pig-left image
+    vx = -Math.abs(vx);  // Move left
   }
 
   // Bounce off ground
@@ -95,8 +96,8 @@ function animate() {
     startJump();
   }
 
-  // Draw the pet image (without flipping, always facing right)
-  ctx.drawImage(petImgRight, petX, petY, width, height);
+  // Draw the pet image (based on direction)
+  ctx.drawImage(currentImage, petX, petY, width, height);
 
   requestAnimationFrame(animate);  // Continue animation loop
 }
@@ -111,9 +112,6 @@ let pet = {
 };
 
 function updateStats() {
-  // Debugging stats
-  console.log('Updating stats:', pet);
-
   document.getElementById('happiness').textContent = pet.happiness;
   document.getElementById('hunger').textContent = pet.hunger;
   document.getElementById('cleanliness').textContent = pet.cleanliness;
