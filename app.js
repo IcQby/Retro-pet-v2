@@ -1,3 +1,4 @@
+```javascript name=app.js
 // --- Canvas and Pet Animation ---
 const canvas = document.getElementById('pet-canvas');
 const ctx = canvas.getContext('2d');
@@ -12,14 +13,14 @@ window.addEventListener('resize', resizeCanvas);
 
 // --- Pet Images ---
 const width = 102, height = 102;
-const petImgLeft = new Image();
-const petImgRight = new Image();
-const petImgSleep = new Image();
-const petImgSleepR = new Image();
+let petImgLeft = new Image();
 petImgLeft.src = 'icon/pig-left.png';
+let petImgRight = new Image();
 petImgRight.src = 'icon/pig-right.png';
+let petImgSleep = new Image();
 petImgSleep.src = 'icon/pig-sleep.png';
-petImgSleepR.src = 'icon/pig-sleepR.png';
+let petImgSleepR = new Image();
+petImgSleepR.src = 'icon/pig-sleepR.png'; // right-facing sleep image
 
 // --- Pet Animation State ---
 let petX, petY;
@@ -28,11 +29,11 @@ let direction = -1; // -1=left, 1=right
 let isSleeping = false;
 let sleepSequenceActive = false;
 let sleepRequested = false;
+let sleepSequenceStep = 0;
 let sleepSequenceTimer = null;
-let currentImg;
-let sleepResumeDirection = direction;
-let sleepResumeImg;
-let wakeHold = false;
+let currentImg = petImgLeft; // Track which image is currently shown
+let resumeDirection = direction; // direction to restore after sleep
+let resumeImg = currentImg;      // image to restore after sleep
 
 // --- Stats Logic ---
 let pet = {
@@ -74,10 +75,12 @@ window.sleepPet = function() {
   pet.health = Math.min(100, pet.health + 10);
   pet.hunger = Math.min(100, pet.hunger + 10);
   updateStats();
+  // Only request sleep, do NOT start sequence yet
   if (!isSleeping && !sleepSequenceActive && !sleepRequested) {
     sleepRequested = true;
-    sleepResumeDirection = direction;
-    sleepResumeImg = (direction === 1) ? petImgRight : petImgLeft;
+    // Save direction and image to restore after sleep
+    resumeDirection = direction;
+    resumeImg = (direction === 1) ? petImgRight : petImgLeft;
   }
 };
 window.healPet = function() {
@@ -86,37 +89,42 @@ window.healPet = function() {
   updateStats();
 };
 
-// --- Sleep Sequence Logic (as specified, now with direction-aware sleep image) ---
+// --- Sleep Sequence Logic ---
 function runSleepSequence() {
+  sleepSequenceStep = 1;
   sleepSequenceActive = true;
-  sleepRequested = false;
-  vx = 0; vy = 0;
+  sleepRequested = false; // reset request
 
-  let originalImg = sleepResumeImg;
-  let oppositeImg = (sleepResumeImg === petImgRight) ? petImgLeft : petImgRight;
-  // Use sleep image based on direction
-  let sleepImg = (sleepResumeDirection === 1) ? petImgSleepR : petImgSleep;
-  currentImg = originalImg;
+  // Use the direction and image at the time sleep was pressed
+  let imgA = resumeImg;
+  let imgB = (resumeImg === petImgRight) ? petImgLeft : petImgRight;
+  // Choose the correct sleep image for direction
+  let sleepImg = (resumeImg === petImgRight) ? petImgSleepR : petImgSleep;
 
+  currentImg = imgA;
+  vx = 0; vy = 0; // Stop the pig
+
+  // Fall asleep animation: 1s original, 0.5s opposite, 0.5s original, 0.5s opposite, then sleep for 5s, then wake up (2s original)
   setTimeout(() => {
-    currentImg = oppositeImg;
+    currentImg = imgB;
     setTimeout(() => {
-      currentImg = originalImg;
+      currentImg = imgA;
       setTimeout(() => {
-        currentImg = oppositeImg;
+        currentImg = imgB;
         setTimeout(() => {
           currentImg = sleepImg;
           isSleeping = true;
           sleepSequenceActive = false;
+          // Sleep for 5 seconds
           setTimeout(() => {
-            // Hold still for 2s as original facing
-            currentImg = originalImg;
+            // Wake up: show original facing for 2s, then jump
+            currentImg = imgA;
             isSleeping = false;
-            wakeHold = true; // <-- pig remains still for 2s
+            // Hold still for 2 seconds before jumping
             setTimeout(() => {
-              wakeHold = false;
+              sleepSequenceStep = 0;
               sleepSequenceActive = false;
-              direction = sleepResumeDirection;
+              direction = resumeDirection;
               currentImg = (direction === 1) ? petImgRight : petImgLeft;
               startJump();
             }, 2000);
@@ -145,25 +153,24 @@ function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
 
-  // Only move if not sleeping, not in sleep sequence, and not in wakeHold
-  if (!isSleeping && !sleepSequenceActive && !wakeHold) {
+  if (!isSleeping && !sleepSequenceActive) {
     vy += gravity;
     petX += vx;
     petY += vy;
   }
 
   // Walls
-  if (!isSleeping && !sleepSequenceActive && !wakeHold) {
+  if (!isSleeping && !sleepSequenceActive) {
     if (petX <= 0) {
       petX = 0;
       direction = 1;
       vx = Math.abs(vx);
-      currentImg = petImgRight;
+      currentImg = petImgRight; // Always face right at left edge
     } else if (petX + width >= canvas.width) {
       petX = canvas.width - width;
       direction = -1;
       vx = -Math.abs(vx);
-      currentImg = petImgLeft;
+      currentImg = petImgLeft; // Always face left at right edge
     }
   }
 
@@ -171,41 +178,82 @@ function animate() {
   let groundY = canvas.height - height;
   if (petY >= groundY) {
     petY = groundY;
-    // Only run sleep if just requested and not in sequence or hold
-    if (sleepRequested && !sleepSequenceActive && !wakeHold) {
+    if (sleepRequested && !sleepSequenceActive) {
       runSleepSequence();
-    } else if (!isSleeping && !sleepSequenceActive && !sleepRequested && !wakeHold) {
+    } else if (!isSleeping && !sleepSequenceActive && !sleepRequested) {
       startJump();
     }
   }
 
+  // Draw pig
   ctx.drawImage(currentImg, petX, petY, width, height);
+
   requestAnimationFrame(animate);
 }
 
 // --- Background Sync & Push ---
 function registerBackgroundSync(tag) {
-  // (No-op for demo)
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    navigator.serviceWorker.ready.then(registration => {
+      registration.sync.register(tag).then(() => {
+        console.log(`Background sync registered for ${tag}`);
+      }).catch(err => {
+        console.log('Background sync registration failed:', err);
+      });
+    });
+  }
+}
+function askPushPermissionAndSubscribe() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.log('Push messaging not supported');
+    return;
+  }
+  Notification.requestPermission().then(permission => {
+    if (permission === 'granted') {
+      subscribeUserToPush();
+    } else {
+      console.log('Push permission denied');
+    }
+  });
+}
+function subscribeUserToPush() {
+  navigator.serviceWorker.ready.then(registration => {
+    const vapidPublicKey = 'BOrX-ZnfnDcU7wXcmnI7kVvIVFQeZzxpDvLrFqXdeB-lKQAzP8Hy2LqzWdN-s2Yfr3Kr-Q8OjQ_k3X1KNk1-7LI';
+    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+    registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedVapidKey
+    }).then(subscription => {
+      console.log('User subscribed to push:', subscription);
+    }).catch(err => {
+      console.log('Failed to subscribe user:', err);
+    });
+  });
+}
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
 }
 
 // --- Start Everything ---
-let imagesLoaded = 0;
-function onImgLoad() {
-  imagesLoaded++;
-  if (imagesLoaded === 4) {
-    petX = canvas.width - width - 10;
-    petY = canvas.height - height;
-    direction = -1;
-    currentImg = petImgLeft;
-    updateStats();
-    animate();
-  }
-}
-petImgLeft.onload = onImgLoad;
-petImgRight.onload = onImgLoad;
-petImgSleep.onload = onImgLoad;
-petImgSleepR.onload = onImgLoad;
+Promise.all([
+  new Promise(resolve => petImgLeft.onload = resolve),
+  new Promise(resolve => petImgRight.onload = resolve),
+  new Promise(resolve => petImgSleep.onload = resolve),
+  new Promise(resolve => petImgSleepR.onload = resolve)
+]).then(() => {
+  // Set initial position and image
+  petX = canvas.width - width - 10;
+  petY = canvas.height - height;
+  currentImg = petImgLeft; // Start facing left
+  updateStats(); // Show stats at startup
+  animate();
+});
 
 window.addEventListener('DOMContentLoaded', () => {
   updateStats();
+  askPushPermissionAndSubscribe();
 });
+```
