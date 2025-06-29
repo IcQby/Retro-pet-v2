@@ -32,11 +32,15 @@ let currentImg = petImgLeft; // Track which image is currently shown
 let originalDirection = direction;
 let originalImg = petImgLeft;
 
+// --- UI Interaction Lock ---
+let controlsLocked = false;
+
 function startJump() {
   const speed = 6, angle = Math.PI * 65 / 180;
   vx = direction * speed * Math.cos(angle);
   vy = -speed * Math.sin(angle);
 }
+
 startJump();
 
 function drawBackground() {
@@ -88,6 +92,7 @@ function animate() {
 
 // --- Sleep Sequence Logic ---
 function runSleepSequence() {
+  controlsLocked = true;
   sleepSequenceStep = 1;
   sleepSequenceActive = true;
   originalDirection = direction;
@@ -96,31 +101,37 @@ function runSleepSequence() {
   currentImg = originalImg;
   vx = 0; vy = 0; // Stop the pig
 
-  // Step 1: Stopped at current image for 1 second
+  // 1s on currentImage
   sleepSequenceTimer = setTimeout(() => {
     sleepSequenceStep = 2;
     currentImg = altImg; // Switch to opposite direction
-    // Step 2: Opposite direction for 0.5 seconds
+    // 0.5s on altImg
     sleepSequenceTimer = setTimeout(() => {
       sleepSequenceStep = 3;
       currentImg = originalImg; // Switch back to original direction
-      // Step 3: Original direction again for 0.5 seconds
+      // 0.5s on originalImg
       sleepSequenceTimer = setTimeout(() => {
         sleepSequenceStep = 4;
-        currentImg = petImgSleep; // Switch to sleep image
-        isSleeping = true;
-        // Step 4: Sleep for 5 seconds
+        currentImg = altImg; // Switch to opposite direction again
+        // 0.5s on altImg
         sleepSequenceTimer = setTimeout(() => {
           sleepSequenceStep = 5;
-          currentImg = originalImg; // Wake up into original direction image
-          isSleeping = false;
-          // Step 5: Show original image for 2 seconds
+          currentImg = petImgSleep; // Switch to sleep image
+          isSleeping = true;
+          // 5s sleeping
           sleepSequenceTimer = setTimeout(() => {
-            sleepSequenceStep = 0;
-            sleepSequenceActive = false;
-            startJump();
-          }, 2000);
-        }, 5000);
+            sleepSequenceStep = 6;
+            currentImg = originalImg; // Wake up into original direction image
+            isSleeping = false;
+            // 2s on originalImg
+            sleepSequenceTimer = setTimeout(() => {
+              sleepSequenceStep = 0;
+              sleepSequenceActive = false;
+              controlsLocked = false;
+              startJump();
+            }, 2000);
+          }, 5000);
+        }, 500);
       }, 500);
     }, 500);
   }, 1000);
@@ -141,24 +152,31 @@ function updateStats() {
   document.getElementById('health').textContent = pet.health;
 }
 
-// --- Pet Care Functions ---
-window.feedPet = function() {
+// --- Pet Care Functions (all locked during sleep sequence) ---
+function petCareWrapper(fn) {
+  return function(...args) {
+    if (controlsLocked) return;
+    fn(...args);
+  };
+}
+
+window.feedPet = petCareWrapper(function() {
   pet.hunger = Math.max(0, pet.hunger - 15);
   pet.happiness = Math.min(100, pet.happiness + 5);
   updateStats();
   registerBackgroundSync('sync-feed-pet');
-};
-window.playWithPet = function() {
+});
+window.playWithPet = petCareWrapper(function() {
   pet.happiness = Math.min(100, pet.happiness + 10);
   pet.hunger = Math.min(100, pet.hunger + 5);
   updateStats();
-};
-window.cleanPet = function() {
+});
+window.cleanPet = petCareWrapper(function() {
   pet.cleanliness = 100;
   pet.happiness = Math.min(100, pet.happiness + 5);
   updateStats();
-};
-window.sleepPet = function() {
+});
+window.sleepPet = petCareWrapper(function() {
   pet.health = Math.min(100, pet.health + 10);
   pet.hunger = Math.min(100, pet.hunger + 10);
   updateStats();
@@ -168,12 +186,12 @@ window.sleepPet = function() {
     sleepSequenceStep = 0;
     // The actual sleep sequence will start when pig lands in animate()
   }
-};
-window.healPet = function() {
+});
+window.healPet = petCareWrapper(function() {
   pet.health = 100;
   pet.happiness = Math.min(100, pet.happiness + 5);
   updateStats();
-};
+});
 
 // --- Background Sync & Push ---
 function registerBackgroundSync(tag) {
