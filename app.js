@@ -44,10 +44,7 @@ function drawBackground() {
   // Air (light blue)
   ctx.fillStyle = '#ADD8E6';  // Light blue color for the sky
   ctx.fillRect(0, 0, canvas.width, canvas.height * 2 / 3);
-
-  drawBackground();  // Draw the background first
 }
-
 
 // Function to start jumping
 function startJump() {
@@ -56,8 +53,6 @@ function startJump() {
   vy = -speed * Math.sin(angle);
   jumpInProgress = true;
 }
-
-
 
 // Animation function
 function animate() {
@@ -136,6 +131,11 @@ function initiateSleepSequence() {
       // After 5 seconds, switch back to jumping
       sleeping = false;
       petY = groundY;  // Ensure the pet stays on the ground after waking up
+
+      // Reset velocity to start a new jump
+      vx = direction * 6 * Math.cos(Math.PI * 65 / 180);  // Horizontal velocity for jump
+      vy = -6 * Math.sin(Math.PI * 65 / 180);  // Vertical velocity for jump
+      jumpInProgress = true;  // Allow the jump to happen
 
       // Wait for 2 more seconds before jumping again
       setTimeout(() => {
