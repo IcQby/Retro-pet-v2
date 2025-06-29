@@ -1,6 +1,5 @@
 const canvas = document.getElementById('pet-canvas');
 const ctx = canvas.getContext('2d');
-const statsElement = document.getElementById('stats');
 
 // Resize canvas to fit the window
 function resizeCanvas() {
@@ -12,6 +11,7 @@ resizeCanvas();
 // Keep canvas resized when window is resized
 window.addEventListener('resize', () => {
   resizeCanvas();
+  // Keep pet inside canvas after resize
   if (petX + width > canvas.width) {
     petX = canvas.width - width;
   }
@@ -19,13 +19,11 @@ window.addEventListener('resize', () => {
 
 // Constants for pet size
 const width = 102, height = 102;  // Actual image size (scaled down)
-const groundY = canvas.height - height;  // Set ground to the bottom based on 102px image height
+const groundY = canvas.height - height ;  // Set ground to the bottom based on 102px image height
 
-// Pet images
+// Pet image
 let petImgLeft = new Image();
-petImgLeft.src = 'icon/icon-192.png';  // Replace with the actual path
-let petImgSleep = new Image();
-petImgSleep.src = 'icon/pig-sleep.png';  // Replace with the actual path
+petImgLeft.src = 'icon/icon-192.png';
 
 let petX = canvas.width - width - 10, petY = groundY; // inside canvas
 let vx = 0, vy = 0, gravity = 0.4;
@@ -34,6 +32,15 @@ let direction = -1, facing = -1;
 let sleeping = false;  // State to track if the pet is sleeping
 let jumpInProgress = false;  // To track if a jump is currently in progress
 let health = 50;  // Starting health
+
+// Function to start jumping
+function startJump() {
+  const speed = 6, angle = Math.PI * 65 / 180;
+  vx = direction * speed * Math.cos(angle);
+  vy = -speed * Math.sin(angle);
+}
+
+startJump();
 
 // Draw background with pastel green (ground) and light blue (air)
 function drawBackground() {
@@ -46,26 +53,14 @@ function drawBackground() {
   ctx.fillRect(0, 0, canvas.width, canvas.height * 2 / 3);
 }
 
-// Function to start jumping
-function startJump() {
-  const speed = 6, angle = Math.PI * 65 / 180;
-  vx = direction * speed * Math.cos(angle);
-  vy = -speed * Math.sin(angle);
-  jumpInProgress = true;
-}
-
 // Animation function
 function animate() {
-  // Ensure pet is within bounds
-  if (petX < 0) petX = 0;
-  if (petX + width > canvas.width) petX = canvas.width - width;
-  if (petY < 0) petY = 0;  // Prevent the pet from going above the canvas
-  if (petY > canvas.height - height) petY = canvas.height - height;  // Prevent it from going below the canvas
+  drawBackground();  // Draw the background first
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear previous frame
 
   if (sleeping) {
-    ctx.drawImage(petImgSleep, petX, petY, width, height);  // Show sleep image
+    ctx.drawImage(petImgLeft, petX, petY, width, height);  // Show sleeping image (same as jumping for simplicity)
     return;  // Stop further movement during sleep
   }
 
@@ -89,17 +84,13 @@ function animate() {
     vx = -Math.abs(vx);
   }
 
-  // Check if the pig reaches the ground
+  // Bounce off ground
   if (petY >= groundY) {
     petY = groundY;
-    if (jumpInProgress && !sleeping) {
-      jumpInProgress = false;
-      // Start the sleep sequence after reaching the ground
-      initiateSleepSequence();
-    }
+    startJump();
   }
 
-  // Draw the pet image based on the current state
+  // Draw the pet image based on facing direction with flipping
   if (facing === 1) {
     ctx.save();
     ctx.scale(-1, 1);
@@ -109,50 +100,139 @@ function animate() {
     ctx.drawImage(petImgLeft, petX, petY, width, height);
   }
 
-  // Update health stats display
-  statsElement.innerText = `Stats: Health ${health}`;
-
   requestAnimationFrame(animate);  // Continue animation loop
 }
 
 // Start animation once image is loaded
 petImgLeft.onload = () => {
-  petImgSleep.onload = () => {
-    animate();  // Start animation only after both images are loaded
-  };
+  animate();
 };
 
-// Sleep sequence function
+// --- Stats and interactions below (unchanged) ---
+
+let pet = {
+  happiness: 50,
+  hunger: 50,
+  cleanliness: 50,
+  health: 50,
+};
+
+function updateStats() {
+  document.getElementById('happiness').textContent = pet.happiness;
+  document.getElementById('hunger').textContent = pet.hunger;
+  document.getElementById('cleanliness').textContent = pet.cleanliness;
+  document.getElementById('health').textContent = pet.health;
+}
+
+function feedPet() {
+  pet.hunger = Math.max(0, pet.hunger - 15);
+  pet.happiness = Math.min(100, pet.happiness + 5);
+  updateStats();
+  registerBackgroundSync('sync-feed-pet');
+}
+
+function playWithPet() {
+  pet.happiness = Math.min(100, pet.happiness + 10);
+  pet.hunger = Math.min(100, pet.hunger + 5);
+  updateStats();
+}
+
+function cleanPet() {
+  pet.cleanliness = 100;
+  pet.happiness = Math.min(100, pet.happiness + 5);
+  updateStats();
+}
+
+function sleepPet() {
+  pet.health = Math.min(100, pet.health + 10);
+  pet.hunger = Math.min(100, pet.hunger + 10);
+  updateStats();
+}
+
+function healPet() {
+  pet.health = 100;
+  pet.happiness = Math.min(100, pet.happiness + 5);
+  updateStats();
+}
+
+function registerBackgroundSync(tag) {
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    navigator.serviceWorker.ready.then(registration => {
+      registration.sync.register(tag).then(() => {
+        console.log(`Background sync registered for ${tag}`);
+      }).catch(err => {
+        console.log('Background sync registration failed:', err);
+      });
+    });
+  }
+}
+
+function askPushPermissionAndSubscribe() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.log('Push messaging not supported');
+    return;
+  }
+
+  Notification.requestPermission().then(permission => {
+    if (permission === 'granted') {
+      subscribeUserToPush();
+    } else {
+      console.log('Push permission denied');
+    }
+  });
+}
+
+function subscribeUserToPush() {
+  navigator.serviceWorker.ready.then(registration => {
+    const vapidPublicKey = 'BOrX-ZnfnDcU7wXcmnI7kVvIVFQeZzxpDvLrFqXdeB-lKQAzP8Hy2LqzWdN-s2Yfr3Kr-Q8OjQ_k3X1KNk1-7LI';
+    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+    registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedVapidKey
+    }).then(subscription => {
+      console.log('User subscribed to push:', subscription);
+    }).catch(err => {
+      console.log('Failed to subscribe user:', err);
+    });
+  });
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+}
+
+// Sleep Sequence function
 function initiateSleepSequence() {
-  // Stop movement temporarily for 1 second
+  // Stop pet's movement temporarily
+  sleeping = true;
+  petY = groundY; // Ensure pet stays on the ground during sleep
+  
+  // Update stats for sleep action
+  pet.health = Math.min(100, pet.health + 10);  // Increase health during sleep
+  updateStats();
+
+  // Sleep for 5 seconds before waking up
   setTimeout(() => {
-    // Switch to sleep icon
-    sleeping = true;
-
-    // Wait for 5 seconds while the pet is sleeping
-    setTimeout(() => {
-      // After 5 seconds, switch back to jumping
-      sleeping = false;
-      petY = groundY;  // Ensure the pet stays on the ground after waking up
-
-      // Reset velocity to start a new jump
-      vx = direction * 6 * Math.cos(Math.PI * 65 / 180);  // Horizontal velocity for jump
-      vy = -6 * Math.sin(Math.PI * 65 / 180);  // Vertical velocity for jump
-      jumpInProgress = true;  // Allow the jump to happen
-
-      // Wait for 2 more seconds before jumping again
-      setTimeout(() => {
-        startJump();  // Start a new jump after the 2-second wait
-      }, 2000);  // Wait 2 seconds before jumping
-    }, 5000);  // Sleep for 5 seconds
-  }, 1000);  // Pause for 1 second before switching to sleep
+    sleeping = false;
+    petY = groundY;  // Ensure the pet stays on the ground after waking up
+    startJump(); // Restart jump after waking up
+  }, 5000);  // Sleep for 5 seconds
 }
 
 // Button to trigger sleep (simulate button click)
 document.getElementById('sleepButton').addEventListener('click', () => {
   if (!sleeping) {
     jumpInProgress = false;  // Stop jumping when sleep is triggered
-    petY = groundY;  // Ensure the pig is on the ground
+    petY = groundY;  // Ensure the pet is on the ground
     initiateSleepSequence();  // Start the sleep sequence
   }
 });
+
+// Initial setup
+window.onload = () => {
+  updateStats();
+  askPushPermissionAndSubscribe();
+};
