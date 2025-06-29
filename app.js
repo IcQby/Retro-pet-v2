@@ -24,8 +24,9 @@ const groundY = canvas.height - height ;  // Set ground to the bottom based on 1
 
 // Pet image
 let petImgRight = new Image();
-petImgRight.src = 'icon/pig-right.png';  // Changed to pig-right.png
+petImgRight.src = 'icon/pig-right.png';  // Path to pig-right.png image
 
+// Check if the image loaded correctly
 petImgRight.onload = () => {
   console.log('Pet image loaded successfully.');
   console.log(`Pet image dimensions: Width: ${petImgRight.width}, Height: ${petImgRight.height}`);
@@ -33,9 +34,11 @@ petImgRight.onload = () => {
 };
 
 petImgRight.onerror = () => {
-  console.error('Failed to load pet image.');
+  console.error('Failed to load pet image. Check the path.');
+  // Use a fallback image if needed (you could also add a default image here)
 };
 
+// Initialize pet position
 let petX = canvas.width - width - 10, petY = groundY; // inside canvas
 let vx = 0, vy = 0, gravity = 0.4;
 let direction = -1;
