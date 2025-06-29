@@ -24,19 +24,20 @@ let petX = canvas.width - width - 10;
 let petY = canvas.height - height;
 let vx = 0, vy = 0, gravity = 0.4;
 let direction = -1; // -1=left, 1=right
+let isSleeping = false;
+let sleepSequenceActive = false;
+let sleepSequenceStep = 0;
+let sleepSequenceTimer = null;
+let currentImg = petImgLeft; // Track which image is currently shown
+let originalDirection = direction;
+let originalImg = petImgLeft;
 
 function startJump() {
   const speed = 6, angle = Math.PI * 65 / 180;
   vx = direction * speed * Math.cos(angle);
   vy = -speed * Math.sin(angle);
 }
-
-// --- Sleep Sequence State ---
-let sleepRequested = false; // Set when sleep is requested by button
-let sleepState = null;  // null, "pause1", "sleep", "pause2"
-let sleepStartTime = 0;
-let sleepFacing = -1; // Direction to face during sleep
-let wasMoving = false; // To block multiple triggers
+startJump();
 
 function drawBackground() {
   ctx.fillStyle = '#90EE90';
@@ -45,47 +46,16 @@ function drawBackground() {
   ctx.fillRect(0, 0, canvas.width, canvas.height * 2 / 3);
 }
 
-function getCurrentPigImg() {
-  if (sleepState === "sleep") {
-    return petImgSleep;
-  } else {
-    // Use frozen facing if in pause1 or pause2, else live direction
-    let useDir = sleepState ? sleepFacing : direction;
-    return useDir === 1 ? petImgRight : petImgLeft;
-  }
-}
-
-function animate(now) {
+function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
 
-  let currentImg = getCurrentPigImg();
-
-  // --- Handle Sleep Sequence State Machine ---
-  if (sleepState !== null) {
-    // All sleep phases are stationary
-    ctx.drawImage(currentImg, petX, petY, width, height);
-
-    let elapsed = performance.now() - sleepStartTime;
-    if (sleepState === "pause1" && elapsed >= 1000) {
-      sleepState = "sleep";
-      sleepStartTime = performance.now();
-    } else if (sleepState === "sleep" && elapsed >= 5000) {
-      sleepState = "pause2";
-      sleepStartTime = performance.now();
-    } else if (sleepState === "pause2" && elapsed >= 2000) {
-      sleepState = null;
-      sleepFacing = -1;
-      startJump();
-    }
-    requestAnimationFrame(animate);
-    return;
+  if (!isSleeping && !sleepSequenceActive) {
+    // Gravity and movement
+    vy += gravity;
+    petX += vx;
+    petY += vy;
   }
-
-  // --- Normal Movement ---
-  vy += gravity;
-  petX += vx;
-  petY += vy;
 
   // Walls
   if (petX <= 0) {
@@ -102,24 +72,58 @@ function animate(now) {
   let groundY = canvas.height - height;
   if (petY >= groundY) {
     petY = groundY;
-    if (sleepRequested) {
-      // Begin sleep sequence
-      sleepRequested = false;
-      sleepState = "pause1";
-      sleepStartTime = performance.now();
-      sleepFacing = direction;
-      vx = 0;
-      vy = 0;
-      ctx.drawImage(currentImg, petX, petY, width, height);
-      requestAnimationFrame(animate);
-      return;
+    if (sleepSequenceActive && sleepSequenceStep === 0) {
+      // Begin sleep sequence when pig lands, only once
+      runSleepSequence();
+    } else if (!isSleeping && !sleepSequenceActive) {
+      startJump();
     }
-    startJump();
   }
 
+  // Draw pig: use currentImg for all cases
   ctx.drawImage(currentImg, petX, petY, width, height);
 
   requestAnimationFrame(animate);
+}
+
+// --- Sleep Sequence Logic ---
+function runSleepSequence() {
+  sleepSequenceStep = 1;
+  sleepSequenceActive = true;
+  originalDirection = direction;
+  originalImg = (originalDirection === 1) ? petImgRight : petImgLeft;
+  let altImg = (originalDirection === 1) ? petImgLeft : petImgRight;
+  currentImg = originalImg;
+  vx = 0; vy = 0; // Stop the pig
+
+  // Step 1: Stopped at current image for 1 second
+  sleepSequenceTimer = setTimeout(() => {
+    sleepSequenceStep = 2;
+    currentImg = altImg; // Switch to opposite direction
+    // Step 2: Opposite direction for 0.5 seconds
+    sleepSequenceTimer = setTimeout(() => {
+      sleepSequenceStep = 3;
+      currentImg = originalImg; // Switch back to original direction
+      // Step 3: Original direction again for 0.5 seconds
+      sleepSequenceTimer = setTimeout(() => {
+        sleepSequenceStep = 4;
+        currentImg = petImgSleep; // Switch to sleep image
+        isSleeping = true;
+        // Step 4: Sleep for 5 seconds
+        sleepSequenceTimer = setTimeout(() => {
+          sleepSequenceStep = 5;
+          currentImg = originalImg; // Wake up into original direction image
+          isSleeping = false;
+          // Step 5: Show original image for 2 seconds
+          sleepSequenceTimer = setTimeout(() => {
+            sleepSequenceStep = 0;
+            sleepSequenceActive = false;
+            startJump();
+          }, 2000);
+        }, 5000);
+      }, 500);
+    }, 500);
+  }, 1000);
 }
 
 // --- Stats Logic ---
@@ -158,9 +162,11 @@ window.sleepPet = function() {
   pet.health = Math.min(100, pet.health + 10);
   pet.hunger = Math.min(100, pet.hunger + 10);
   updateStats();
-  // Request sleep on next landing
-  if (sleepState === null && !sleepRequested) {
-    sleepRequested = true;
+  // Set up to start sleep sequence on next landing
+  if (!isSleeping && !sleepSequenceActive) {
+    sleepSequenceActive = true;
+    sleepSequenceStep = 0;
+    // The actual sleep sequence will start when pig lands in animate()
   }
 };
 window.healPet = function() {
@@ -221,6 +227,7 @@ Promise.all([
   new Promise(resolve => petImgRight.onload = resolve),
   new Promise(resolve => petImgSleep.onload = resolve)
 ]).then(() => {
+  currentImg = petImgLeft; // Start facing left
   animate();
 });
 
