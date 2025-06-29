@@ -1,207 +1,79 @@
-//`javascript name=app.js
+// Get canvas and context
 const canvas = document.getElementById('pet-canvas');
 const ctx = canvas.getContext('2d');
 
-// Resize canvas to fit the window
+// Make sure canvas buffer matches CSS size for sharp rendering
 function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = 300;  // Fixed height for the canvas (300 pixels)
+  canvas.width = canvas.offsetWidth;
+  canvas.height = 300; // matches the CSS height
 }
 resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
-// Keep canvas resized when window is resized
+// Image assets
+const pigLeft = new Image();
+pigLeft.src = "icon/pig-left.png";
+
+const pigRight = new Image();
+pigRight.src = "icon/pig-right.png";
+
+// Pet state
+let pet = {
+  x: 150,
+  y: 200,
+  direction: "right", // "left" or "right"
+  mood: "happy"
+};
+
+// Draw the pig
+function drawPet() {
+  // Clear canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Optionally, re-draw the background here if your canvas background is JS-drawn.
+  // But if you're using CSS background, you don't need to.
+
+  // Draw pig
+  if (pet.direction === "left" && pigLeft.complete) {
+    ctx.drawImage(
+      pigLeft,
+      pet.x - pigLeft.width / 2,
+      pet.y - pigLeft.height / 2
+    );
+  } else if (pet.direction === "right" && pigRight.complete) {
+    ctx.drawImage(
+      pigRight,
+      pet.x - pigRight.width / 2,
+      pet.y - pigRight.height / 2
+    );
+  }
+}
+
+// Redraw when image is loaded
+pigLeft.onload = pigRight.onload = drawPet;
+
+// Controls
+document.getElementById("left-btn").onclick = function() {
+  pet.direction = "left";
+  pet.x = Math.max(pet.x - 20, pigLeft.width / 2);
+  drawPet();
+};
+document.getElementById("right-btn").onclick = function() {
+  pet.direction = "right";
+  pet.x = Math.min(
+    pet.x + 20,
+    canvas.width - pigRight.width / 2
+  );
+  drawPet();
+};
+
+// Initial draw (in case images are cached)
+window.onload = () => {
+  drawPet();
+};
+
+// Optionally, handle window resize to redraw pet at correct position
 window.addEventListener('resize', () => {
   resizeCanvas();
-  // Keep pet inside canvas after resize
-  if (petX + width > canvas.width) {
-    petX = canvas.width - width;
-  }
+  drawPet();
 });
-
-// Constants for pet size
-const width = 102, height = 102;  // Actual image size (scaled down)
-const groundY = canvas.height - height ;  // Set ground to the bottom based on 102px image height
-
-// Pet images
-let petImgLeft = new Image();
-let petImgRight = new Image();
-let imagesLoaded = 0;
-function tryStartAnimation() {
-  imagesLoaded++;
-  if (imagesLoaded >= 2) animate();
-}
-petImgLeft.onload = tryStartAnimation;
-petImgRight.onload = tryStartAnimation;
-petImgLeft.src = 'icon/pig-left.png';
-petImgRight.src = 'icon/pig-right.png';
-
-let petX = canvas.width - width - 10, petY = groundY; // inside canvas
-let vx = 0, vy = 0, gravity = 0.4;
-let direction = -1, facing = -1;
-
-// Function to start jumping
-function startJump() {
-  const speed = 6, angle = Math.PI * 65 / 180;
-  vx = direction * speed * Math.cos(angle);
-  vy = -speed * Math.sin(angle);
-}
-
-startJump();
-
-// Draw background with pastel green (ground) and light blue (air)
-function drawBackground() {
-  // Ground (pastel green)
-  ctx.fillStyle = '#90EE90';  // Pastel green color for the ground
-  ctx.fillRect(0, canvas.height * 2 / 3, canvas.width, canvas.height / 3);
-
-  // Air (light blue)
-  ctx.fillStyle = '#ADD8E6';  // Light blue color for the sky
-  ctx.fillRect(0, 0, canvas.width, canvas.height * 2 / 3);
-}
-
-// Animation function
-function animate() {
-  drawBackground();  // Draw the background first
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear previous frame
-
-  // Gravity and movement
-  vy += gravity;
-  petX += vx;
-  petY += vy;
-
-  // Bounce off left wall
-  if (petX <= 0) {
-    petX = 0;
-    direction = 1;
-    facing = 1;
-    vx = Math.abs(vx);
-  }
-  // Bounce off right wall
-  else if (petX + width >= canvas.width) {
-    petX = canvas.width - width;
-    direction = -1;
-    facing = -1;
-    vx = -Math.abs(vx);
-  }
-
-  // Bounce off ground
-  if (petY >= groundY) {
-    petY = groundY;
-    startJump();
-  }
-
-  // Draw the pet image based on facing direction
-  if (facing === 1) {
-    // Facing right: use pig-right.png
-    ctx.drawImage(petImgRight, petX, petY, width, height);
-  } else {
-    // Facing left: use pig-left.png
-    ctx.drawImage(petImgLeft, petX, petY, width, height);
-  }
-
-  requestAnimationFrame(animate);  // Continue animation loop
-}
-
-// --- Stats and interactions below (unchanged) ---
-
-let pet = {
-  happiness: 50,
-  hunger: 50,
-  cleanliness: 50,
-  health: 50,
-};
-
-function updateStats() {
-  document.getElementById('happiness').textContent = pet.happiness;
-  document.getElementById('hunger').textContent = pet.hunger;
-  document.getElementById('cleanliness').textContent = pet.cleanliness;
-  document.getElementById('health').textContent = pet.health;
-}
-
-function feedPet() {
-  pet.hunger = Math.max(0, pet.hunger - 15);
-  pet.happiness = Math.min(100, pet.happiness + 5);
-  updateStats();
-  registerBackgroundSync('sync-feed-pet');
-}
-
-function playWithPet() {
-  pet.happiness = Math.min(100, pet.happiness + 10);
-  pet.hunger = Math.min(100, pet.hunger + 5);
-  updateStats();
-}
-
-function cleanPet() {
-  pet.cleanliness = 100;
-  pet.happiness = Math.min(100, pet.happiness + 5);
-  updateStats();
-}
-
-function sleepPet() {
-  pet.health = Math.min(100, pet.health + 10);
-  pet.hunger = Math.min(100, pet.hunger + 10);
-  updateStats();
-}
-
-function healPet() {
-  pet.health = 100;
-  pet.happiness = Math.min(100, pet.happiness + 5);
-  updateStats();
-}
-
-function registerBackgroundSync(tag) {
-  if ('serviceWorker' in navigator && 'SyncManager' in window) {
-    navigator.serviceWorker.ready.then(registration => {
-      registration.sync.register(tag).then(() => {
-        console.log(`Background sync registered for ${tag}`);
-      }).catch(err => {
-        console.log('Background sync registration failed:', err);
-      });
-    });
-  }
-}
-
-function askPushPermissionAndSubscribe() {
-  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.log('Push messaging not supported');
-    return;
-  }
-
-  Notification.requestPermission().then(permission => {
-    if (permission === 'granted') {
-      subscribeUserToPush();
-    } else {
-      console.log('Push permission denied');
-    }
-  });
-}
-
-function subscribeUserToPush() {
-  navigator.serviceWorker.ready.then(registration => {
-    const vapidPublicKey = 'BOrX-ZnfnDcU7wXcmnI7kVvIVFQeZzxpDvLrFqXdeB-lKQAzP8Hy2LqzWdN-s2Yfr3Kr-Q8OjQ_k3X1KNk1-7LI';
-    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
-    registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: convertedVapidKey
-    }).then(subscription => {
-      console.log('User subscribed to push:', subscription);
-    }).catch(err => {
-      console.log('Failed to subscribe user:', err);
-    });
-  });
-}
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
-}
-
-window.onload = () => {
-  updateStats();
-  askPushPermissionAndSubscribe();
-};
-```
-Let me know if you need any adjustments or further troubleshooting!
