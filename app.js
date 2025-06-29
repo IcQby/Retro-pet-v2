@@ -1,19 +1,16 @@
-// Get canvas and context
 const canvas = document.getElementById('pet-canvas');
 const ctx = canvas.getContext('2d');
 
-// Stat points example
 let statPoints = {
   hunger: 5,
   happiness: 7,
   energy: 8
 };
 
-// Function to display stat points on screen
-function drawStats() {
-  // Clear only the stats area (top of canvas)
-  ctx.clearRect(0, 0, canvas.width, 50);
+const pigRight = new Image();
+pigRight.src = "icon/pig-right.png";
 
+function drawStats() {
   ctx.font = "20px monospace";
   ctx.fillStyle = "#0f0";
   ctx.textAlign = "left";
@@ -22,5 +19,19 @@ function drawStats() {
   ctx.fillText(`Energy: ${statPoints.energy}`, 336, 28);
 }
 
-// Initial call to draw stats
-drawStats();
+function drawPet() {
+  // Draw pig lower down the canvas
+  if (pigRight.complete) {
+    ctx.drawImage(pigRight, canvas.width/2 - pigRight.width/2, 100);
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawStats();
+  drawPet();
+}
+
+// Ensure pig image is loaded before drawing
+pigRight.onload = draw;
+window.onload = draw;
