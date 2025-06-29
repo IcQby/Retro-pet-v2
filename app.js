@@ -13,10 +13,10 @@ window.addEventListener('resize', resizeCanvas);
 // --- Pet Images ---
 const width = 102, height = 102;
 let petImgLeft = new Image();
-petImgLeft.src = 'icon/pig-left.png';
 let petImgRight = new Image();
-petImgRight.src = 'icon/pig-right.png';
 let petImgSleep = new Image();
+petImgLeft.src = 'icon/pig-left.png';
+petImgRight.src = 'icon/pig-right.png';
 petImgSleep.src = 'icon/pig-sleep.png';
 
 // --- Pet Animation State ---
@@ -28,9 +28,9 @@ let sleepSequenceActive = false;
 let sleepRequested = false;
 let sleepSequenceStep = 0;
 let sleepSequenceTimer = null;
-let currentImg = petImgLeft; // Track which image is currently shown
-let resumeDirection = direction; // direction to restore after sleep
-let resumeImg = currentImg;      // image to restore after sleep
+let currentImg = petImgLeft;
+let resumeDirection = direction;
+let resumeImg = currentImg;
 
 // --- Stats Logic ---
 let pet = {
@@ -72,10 +72,8 @@ window.sleepPet = function() {
   pet.health = Math.min(100, pet.health + 10);
   pet.hunger = Math.min(100, pet.hunger + 10);
   updateStats();
-  // Only request sleep, do NOT start sequence yet
   if (!isSleeping && !sleepSequenceActive && !sleepRequested) {
     sleepRequested = true;
-    // Save direction and image to restore after sleep
     resumeDirection = direction;
     resumeImg = (direction === 1) ? petImgRight : petImgLeft;
   }
@@ -90,16 +88,154 @@ window.healPet = function() {
 function runSleepSequence() {
   sleepSequenceStep = 1;
   sleepSequenceActive = true;
-  sleepRequested = false; // reset request
-
-  // Use the direction and image at the time sleep was pressed
+  sleepRequested = false;
   let imgA = resumeImg;
   let imgB = (resumeImg === petImgRight) ? petImgLeft : petImgRight;
   currentImg = imgA;
-  vx = 0; vy = 0; // Stop the pig
+  vx = 0; vy = 0;
 
-  // Fall asleep animation: 1s original, 0.5s opposite, 0.5s original, 0.5s opposite, then sleep for 5s, then wake up (2s original)
   setTimeout(() => {
     currentImg = imgB;
     setTimeout(() => {
-      currentImg
+      currentImg = imgA;
+      setTimeout(() => {
+        currentImg = imgB;
+        setTimeout(() => {
+          currentImg = petImgSleep;
+          isSleeping = true;
+          sleepSequenceActive = false;
+          setTimeout(() => {
+            currentImg = imgA;
+            isSleeping = false;
+            setTimeout(() => {
+              sleepSequenceStep = 0;
+              sleepSequenceActive = false;
+              direction = resumeDirection;
+              currentImg = (direction === 1) ? petImgRight : petImgLeft;
+              startJump();
+            }, 2000);
+          }, 5000);
+        }, 500);
+      }, 500);
+    }, 500);
+  }, 1000);
+}
+
+function startJump() {
+  const speed = 6, angle = Math.PI * 65 / 180;
+  vx = direction * speed * Math.cos(angle);
+  vy = -speed * Math.sin(angle);
+}
+
+// --- Background & Animation ---
+function drawBackground() {
+  ctx.fillStyle = '#90EE90';
+  ctx.fillRect(0, canvas.height * 2 / 3, canvas.width, canvas.height / 3);
+  ctx.fillStyle = '#ADD8E6';
+  ctx.fillRect(0, 0, canvas.width, canvas.height * 2 / 3);
+}
+
+function animate() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBackground();
+
+  if (!isSleeping && !sleepSequenceActive) {
+    vy += gravity;
+    petX += vx;
+    petY += vy;
+  }
+
+  // Walls
+  if (!isSleeping && !sleepSequenceActive) {
+    if (petX <= 0) {
+      petX = 0;
+      direction = 1;
+      vx = Math.abs(vx);
+      currentImg = petImgRight;
+    } else if (petX + width >= canvas.width) {
+      petX = canvas.width - width;
+      direction = -1;
+      vx = -Math.abs(vx);
+      currentImg = petImgLeft;
+    }
+  }
+
+  // Ground
+  let groundY = canvas.height - height;
+  if (petY >= groundY) {
+    petY = groundY;
+    if (sleepRequested && !sleepSequenceActive) {
+      runSleepSequence();
+    } else if (!isSleeping && !sleepSequenceActive && !sleepRequested) {
+      startJump();
+    }
+  }
+
+  ctx.drawImage(currentImg, petX, petY, width, height);
+  requestAnimationFrame(animate);
+}
+
+// --- Background Sync & Push ---
+function registerBackgroundSync(tag) {
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    navigator.serviceWorker.ready.then(registration => {
+      registration.sync.register(tag).then(() => {
+        console.log(`Background sync registered for ${tag}`);
+      }).catch(err => {
+        console.log('Background sync registration failed:', err);
+      });
+    });
+  }
+}
+function askPushPermissionAndSubscribe() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.log('Push messaging not supported');
+    return;
+  }
+  Notification.requestPermission().then(permission => {
+    if (permission === 'granted') {
+      subscribeUserToPush();
+    } else {
+      console.log('Push permission denied');
+    }
+  });
+}
+function subscribeUserToPush() {
+  navigator.serviceWorker.ready.then(registration => {
+    const vapidPublicKey = 'BOrX-ZnfnDcU7wXcmnI7kVvIVFQeZzxpDvLrFqXdeB-lKQAzP8Hy2LqzWdN-s2Yfr3Kr-Q8OjQ_k3X1KNk1-7LI';
+    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+    registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedVapidKey
+    }).then(subscription => {
+      console.log('User subscribed to push:', subscription);
+    }).catch(err => {
+      console.log('Failed to subscribe user:', err);
+    });
+  });
+}
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+}
+
+// --- Start Everything ---
+Promise.all([
+  new Promise(resolve => petImgLeft.onload = resolve),
+  new Promise(resolve => petImgRight.onload = resolve),
+  new Promise(resolve => petImgSleep.onload = resolve)
+]).then(() => {
+  petX = canvas.width - width - 10;
+  petY = canvas.height - height;
+  direction = -1;
+  currentImg = petImgLeft;
+  updateStats();
+  animate();
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  updateStats();
+  askPushPermissionAndSubscribe();
+});
