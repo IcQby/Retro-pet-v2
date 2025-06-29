@@ -25,22 +25,18 @@ let petY = canvas.height - height;
 let vx = 0, vy = 0, gravity = 0.4;
 let direction = -1; // -1=left, 1=right
 
-// --- Sleep Animation States ---
-let shouldSleep = false; // Set to true when sleep button is pressed
-let sleepPhase = null;   // null, "pause1", "sleep", "pause2"
-let sleepPhaseStart = 0;
-let sleepPhaseImg = null;
-let resumeDirection = direction;
-let resumeVx = vx;
-let sleepQueued = false;
-
 function startJump() {
   const speed = 6, angle = Math.PI * 65 / 180;
   vx = direction * speed * Math.cos(angle);
   vy = -speed * Math.sin(angle);
 }
 
-startJump();
+// --- Sleep Sequence State ---
+let sleepRequested = false; // Set when sleep is requested by button
+let sleepState = null;  // null, "pause1", "sleep", "pause2"
+let sleepStartTime = 0;
+let sleepFacing = -1; // Direction to face during sleep
+let wasMoving = false; // To block multiple triggers
 
 function drawBackground() {
   ctx.fillStyle = '#90EE90';
@@ -50,12 +46,12 @@ function drawBackground() {
 }
 
 function getCurrentPigImg() {
-  if (sleepPhase === "sleep") {
+  if (sleepState === "sleep") {
     return petImgSleep;
-  } else if (sleepPhase === "pause1" || sleepPhase === "pause2") {
-    return sleepPhaseImg;
   } else {
-    return direction === 1 ? petImgRight : petImgLeft;
+    // Use frozen facing if in pause1 or pause2, else live direction
+    let useDir = sleepState ? sleepFacing : direction;
+    return useDir === 1 ? petImgRight : petImgLeft;
   }
 }
 
@@ -65,39 +61,28 @@ function animate(now) {
 
   let currentImg = getCurrentPigImg();
 
-  // Sleep state machine
-  if (sleepPhase) {
-    if (sleepPhase === "pause1") {
-      if (!sleepPhaseStart) sleepPhaseStart = performance.now();
-      // 1 second pause before sleep image
-      if (performance.now() - sleepPhaseStart >= 1000) {
-        sleepPhase = "sleep";
-        sleepPhaseStart = performance.now();
-      }
-    } else if (sleepPhase === "sleep") {
-      // 5 seconds with sleep image
-      if (performance.now() - sleepPhaseStart >= 5000) {
-        sleepPhase = "pause2";
-        sleepPhaseStart = performance.now();
-      }
-    } else if (sleepPhase === "pause2") {
-      // 2 seconds pause after sleep, then resume animation
-      if (performance.now() - sleepPhaseStart >= 2000) {
-        sleepPhase = null;
-        sleepPhaseStart = 0;
-        sleepPhaseImg = null;
-        // Resume movement in same direction as before
-        direction = resumeDirection;
-        startJump();
-      }
-    }
-    // Draw pig (no movement)
+  // --- Handle Sleep Sequence State Machine ---
+  if (sleepState !== null) {
+    // All sleep phases are stationary
     ctx.drawImage(currentImg, petX, petY, width, height);
+
+    let elapsed = performance.now() - sleepStartTime;
+    if (sleepState === "pause1" && elapsed >= 1000) {
+      sleepState = "sleep";
+      sleepStartTime = performance.now();
+    } else if (sleepState === "sleep" && elapsed >= 5000) {
+      sleepState = "pause2";
+      sleepStartTime = performance.now();
+    } else if (sleepState === "pause2" && elapsed >= 2000) {
+      sleepState = null;
+      sleepFacing = -1;
+      startJump();
+    }
     requestAnimationFrame(animate);
     return;
   }
 
-  // Only move if not in sleep sequence
+  // --- Normal Movement ---
   vy += gravity;
   petX += vx;
   petY += vy;
@@ -117,32 +102,22 @@ function animate(now) {
   let groundY = canvas.height - height;
   if (petY >= groundY) {
     petY = groundY;
-
-    // --- Sleep sequence trigger ---
-    if (shouldSleep && !sleepQueued) {
-      // Pause movement for 1s, sleep 5s, pause 2s, resume
-      sleepQueued = true;
-      shouldSleep = false;
-      sleepPhase = "pause1";
-      sleepPhaseImg = direction === 1 ? petImgRight : petImgLeft;
-      resumeDirection = direction;
+    if (sleepRequested) {
+      // Begin sleep sequence
+      sleepRequested = false;
+      sleepState = "pause1";
+      sleepStartTime = performance.now();
+      sleepFacing = direction;
       vx = 0;
       vy = 0;
-      sleepPhaseStart = performance.now();
+      ctx.drawImage(currentImg, petX, petY, width, height);
       requestAnimationFrame(animate);
       return;
     }
-
-    // Only start new jump if not sleeping
     startJump();
   }
 
   ctx.drawImage(currentImg, petX, petY, width, height);
-
-  // Reset sleepQueued after sleep ends
-  if (!sleepPhase && sleepQueued) {
-    sleepQueued = false;
-  }
 
   requestAnimationFrame(animate);
 }
@@ -183,8 +158,10 @@ window.sleepPet = function() {
   pet.health = Math.min(100, pet.health + 10);
   pet.hunger = Math.min(100, pet.hunger + 10);
   updateStats();
-  // Request sleep on next ground contact
-  shouldSleep = true;
+  // Request sleep on next landing
+  if (sleepState === null && !sleepRequested) {
+    sleepRequested = true;
+  }
 };
 window.healPet = function() {
   pet.health = 100;
