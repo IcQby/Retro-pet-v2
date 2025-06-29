@@ -1,33 +1,67 @@
 body {
-  background-color: #000;  /* Black background for the body */
-  color: #0f0;
-  font-family: monospace, monospace;
-  text-align: center;
+  font-family: system-ui, Arial, sans-serif;
+  background: #f0f8ff;
   margin: 0;
   padding: 0;
+  min-height: 100vh;
 }
 
-button {
-  font-size: 1.2rem;
-  margin: 0.3rem;
-  padding: 0.5rem 1rem;
-  background-color: #003300;
-  color: #0f0;
-  border: 1px solid #0f0;
-  cursor: pointer;
-  border-radius: 5px;
+#app {
+  max-width: 600px;
+  margin: 24px auto;
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 2px 12px #0001;
+  padding: 24px;
 }
 
-button:hover {
-  background-color: #006600;
+h1 {
+  text-align: center;
+  margin-top: 0;
+  font-size: 2em;
 }
 
 #pet-canvas {
-  display: block;           /* Make canvas a block element */
-  margin: 0 auto 1rem auto; /* Center horizontally, margin bottom 1rem */
-  width: 100%;              /* Ensure canvas width is 100% of its container */
-  height: 300px;            /* Fixed height for canvas */
-  background: linear-gradient(to bottom, #ADD8E6 0%, #ADD8E6 66%, #90EE90 66%, #90EE90 100%);
-  /* Light blue for sky (top 2/3) and pastel green for grass (bottom 1/3) */
-  border: 1px solid #0f0;  /* Optional border to highlight the canvas */
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: 300px;
+  background: linear-gradient(to bottom, #add8e6 66%, #90ee90 100%);
+  border-radius: 16px;
+  box-shadow: 0 1px 4px #0002;
+  margin: 0 auto 16px auto;
+}
+
+#controls {
+  text-align: center;
+  margin: 16px 0;
+}
+
+#controls button {
+  font-size: 1.1em;
+  margin: 2px 4px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: #e0eafc;
+  color: #222;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+#controls button:hover {
+  background: #c6f1d6;
+}
+
+#stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  margin: 12px 0 0 0;
+  gap: 10px;
+}
+
+#stats p {
+  margin: 6px 0;
+  font-size: 1.1em;
 }
