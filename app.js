@@ -1,4 +1,4 @@
-```javascript name=app.js
+// javascript name=app.js
 const canvas = document.getElementById('pet-canvas');
 const ctx = canvas.getContext('2d');
 
@@ -7,7 +7,7 @@ const width = 102, height = 102;  // Actual image size (scaled down)
 
 // Pet image
 let petImgLeft = new Image();
-petImgLeft.src = 'icon/icon-192.png';
+petImgLeft.src = 'icon/pig-left.png';
 
 // Pet state variables
 let petX = 0, petY = 0, vx = 0, vy = 0, gravity = 0.4;
