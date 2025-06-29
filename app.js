@@ -16,6 +16,8 @@ let petImgLeft = new Image();
 petImgLeft.src = 'icon/pig-left.png';
 let petImgRight = new Image();
 petImgRight.src = 'icon/pig-right.png';
+let petImgSleep = new Image();
+petImgSleep.src = 'icon/pig-sleep.png';
 
 // --- Pet Animation State ---
 let petX = canvas.width - width - 10;
@@ -23,11 +25,21 @@ let petY = canvas.height - height;
 let vx = 0, vy = 0, gravity = 0.4;
 let direction = -1; // -1=left, 1=right
 
+// --- Sleep Animation States ---
+let shouldSleep = false; // Set to true when sleep button is pressed
+let sleepPhase = null;   // null, "pause1", "sleep", "pause2"
+let sleepPhaseStart = 0;
+let sleepPhaseImg = null;
+let resumeDirection = direction;
+let resumeVx = vx;
+let sleepQueued = false;
+
 function startJump() {
   const speed = 6, angle = Math.PI * 65 / 180;
   vx = direction * speed * Math.cos(angle);
   vy = -speed * Math.sin(angle);
 }
+
 startJump();
 
 function drawBackground() {
@@ -37,11 +49,55 @@ function drawBackground() {
   ctx.fillRect(0, 0, canvas.width, canvas.height * 2 / 3);
 }
 
-function animate() {
+function getCurrentPigImg() {
+  if (sleepPhase === "sleep") {
+    return petImgSleep;
+  } else if (sleepPhase === "pause1" || sleepPhase === "pause2") {
+    return sleepPhaseImg;
+  } else {
+    return direction === 1 ? petImgRight : petImgLeft;
+  }
+}
+
+function animate(now) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
 
-  // Gravity and movement
+  let currentImg = getCurrentPigImg();
+
+  // Sleep state machine
+  if (sleepPhase) {
+    if (sleepPhase === "pause1") {
+      if (!sleepPhaseStart) sleepPhaseStart = performance.now();
+      // 1 second pause before sleep image
+      if (performance.now() - sleepPhaseStart >= 1000) {
+        sleepPhase = "sleep";
+        sleepPhaseStart = performance.now();
+      }
+    } else if (sleepPhase === "sleep") {
+      // 5 seconds with sleep image
+      if (performance.now() - sleepPhaseStart >= 5000) {
+        sleepPhase = "pause2";
+        sleepPhaseStart = performance.now();
+      }
+    } else if (sleepPhase === "pause2") {
+      // 2 seconds pause after sleep, then resume animation
+      if (performance.now() - sleepPhaseStart >= 2000) {
+        sleepPhase = null;
+        sleepPhaseStart = 0;
+        sleepPhaseImg = null;
+        // Resume movement in same direction as before
+        direction = resumeDirection;
+        startJump();
+      }
+    }
+    // Draw pig (no movement)
+    ctx.drawImage(currentImg, petX, petY, width, height);
+    requestAnimationFrame(animate);
+    return;
+  }
+
+  // Only move if not in sleep sequence
   vy += gravity;
   petX += vx;
   petY += vy;
@@ -61,14 +117,31 @@ function animate() {
   let groundY = canvas.height - height;
   if (petY >= groundY) {
     petY = groundY;
+
+    // --- Sleep sequence trigger ---
+    if (shouldSleep && !sleepQueued) {
+      // Pause movement for 1s, sleep 5s, pause 2s, resume
+      sleepQueued = true;
+      shouldSleep = false;
+      sleepPhase = "pause1";
+      sleepPhaseImg = direction === 1 ? petImgRight : petImgLeft;
+      resumeDirection = direction;
+      vx = 0;
+      vy = 0;
+      sleepPhaseStart = performance.now();
+      requestAnimationFrame(animate);
+      return;
+    }
+
+    // Only start new jump if not sleeping
     startJump();
   }
 
-  // Draw pig facing correct direction
-  if (direction === 1) {
-    ctx.drawImage(petImgRight, petX, petY, width, height);
-  } else {
-    ctx.drawImage(petImgLeft, petX, petY, width, height);
+  ctx.drawImage(currentImg, petX, petY, width, height);
+
+  // Reset sleepQueued after sleep ends
+  if (!sleepPhase && sleepQueued) {
+    sleepQueued = false;
   }
 
   requestAnimationFrame(animate);
@@ -110,6 +183,8 @@ window.sleepPet = function() {
   pet.health = Math.min(100, pet.health + 10);
   pet.hunger = Math.min(100, pet.hunger + 10);
   updateStats();
+  // Request sleep on next ground contact
+  shouldSleep = true;
 };
 window.healPet = function() {
   pet.health = 100;
@@ -166,7 +241,8 @@ function urlBase64ToUint8Array(base64String) {
 // --- Start Everything ---
 Promise.all([
   new Promise(resolve => petImgLeft.onload = resolve),
-  new Promise(resolve => petImgRight.onload = resolve)
+  new Promise(resolve => petImgRight.onload = resolve),
+  new Promise(resolve => petImgSleep.onload = resolve)
 ]).then(() => {
   animate();
 });
