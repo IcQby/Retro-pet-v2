@@ -35,14 +35,6 @@ let direction = -1, facing = -1;
 let sleeping = false;  // State to track if the pet is sleeping
 let jumpInProgress = false;  // To track if a jump is currently in progress
 
-// Function to start jumping
-function startJump() {
-  const speed = 6, angle = Math.PI * 65 / 180;
-  vx = direction * speed * Math.cos(angle);
-  vy = -speed * Math.sin(angle);
-  jumpInProgress = true;
-}
-
 // Draw background with pastel green (ground) and light blue (air)
 function drawBackground() {
   // Ground (pastel green)
@@ -52,7 +44,20 @@ function drawBackground() {
   // Air (light blue)
   ctx.fillStyle = '#ADD8E6';  // Light blue color for the sky
   ctx.fillRect(0, 0, canvas.width, canvas.height * 2 / 3);
+
+  drawBackground();  // Draw the background first
 }
+
+
+// Function to start jumping
+function startJump() {
+  const speed = 6, angle = Math.PI * 65 / 180;
+  vx = direction * speed * Math.cos(angle);
+  vy = -speed * Math.sin(angle);
+  jumpInProgress = true;
+}
+
+
 
 // Animation function
 function animate() {
@@ -61,8 +66,6 @@ function animate() {
   if (petX + width > canvas.width) petX = canvas.width - width;
   if (petY < 0) petY = 0;  // Prevent the pet from going above the canvas
   if (petY > canvas.height - height) petY = canvas.height - height;  // Prevent it from going below the canvas
-
-  drawBackground();  // Draw the background first
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear previous frame
 
