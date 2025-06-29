@@ -1,4 +1,4 @@
-//```javascript name=app.js
+//`javascript name=app.js
 const canvas = document.getElementById('pet-canvas');
 const ctx = canvas.getContext('2d');
 
@@ -24,8 +24,15 @@ const groundY = canvas.height - height ;  // Set ground to the bottom based on 1
 
 // Pet images
 let petImgLeft = new Image();
-petImgLeft.src = 'icon/pig-left.png';
 let petImgRight = new Image();
+let imagesLoaded = 0;
+function tryStartAnimation() {
+  imagesLoaded++;
+  if (imagesLoaded >= 2) animate();
+}
+petImgLeft.onload = tryStartAnimation;
+petImgRight.onload = tryStartAnimation;
+petImgLeft.src = 'icon/pig-left.png';
 petImgRight.src = 'icon/pig-right.png';
 
 let petX = canvas.width - width - 10, petY = groundY; // inside canvas
@@ -95,15 +102,6 @@ function animate() {
 
   requestAnimationFrame(animate);  // Continue animation loop
 }
-
-// Start animation once images are loaded
-let imagesLoaded = 0;
-function tryStartAnimation() {
-  imagesLoaded++;
-  if (imagesLoaded >= 2) animate();
-}
-petImgLeft.onload = tryStartAnimation;
-petImgRight.onload = tryStartAnimation;
 
 // --- Stats and interactions below (unchanged) ---
 
@@ -206,4 +204,4 @@ window.onload = () => {
   askPushPermissionAndSubscribe();
 };
 ```
-Let me know if you need any further tweaks or explanations!
+Let me know if you need any adjustments or further troubleshooting!
