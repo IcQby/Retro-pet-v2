@@ -25,7 +25,7 @@ let vx = 0, vy = 0, gravity = 0.4;
 let direction = -1; // -1=left, 1=right
 let isSleeping = false;
 let sleepSequenceActive = false;
-let sleepRequested = false; // <--- NEW FLAG
+let sleepRequested = false;
 let sleepSequenceStep = 0;
 let sleepSequenceTimer = null;
 let currentImg = petImgLeft; // Track which image is currently shown
@@ -72,8 +72,7 @@ window.sleepPet = function() {
   updateStats();
   // Only request sleep, do NOT start sequence yet
   if (!isSleeping && !sleepSequenceActive && !sleepRequested) {
-    sleepRequested = true;
-    // The actual sleep sequence will start when pig lands in animate()
+    sleepRequested = true; // Only set flag!
   }
 };
 window.healPet = function() {
@@ -163,9 +162,6 @@ function animate() {
     petY = groundY;
     // If sleep was requested, trigger the sleep sequence NOW
     if (sleepRequested && !sleepSequenceActive) {
-      runSleepSequence();
-    } else if (sleepSequenceActive && sleepSequenceStep === 0) {
-      // (legacy, should never happen but left for safety)
       runSleepSequence();
     } else if (!isSleeping && !sleepSequenceActive && !sleepRequested) {
       startJump();
