@@ -25,6 +25,7 @@ let vx = 0, vy = 0, gravity = 0.4;
 let direction = -1; // -1=left, 1=right
 let isSleeping = false;
 let sleepSequenceActive = false;
+let sleepRequested = false; // <--- NEW FLAG
 let sleepSequenceStep = 0;
 let sleepSequenceTimer = null;
 let currentImg = petImgLeft; // Track which image is currently shown
@@ -38,7 +39,6 @@ let pet = {
 };
 
 function updateStats() {
-  // Make sure elements exist before attempting to update
   if (document.getElementById('happiness'))
     document.getElementById('happiness').textContent = pet.happiness;
   if (document.getElementById('hunger'))
@@ -70,10 +70,9 @@ window.sleepPet = function() {
   pet.health = Math.min(100, pet.health + 10);
   pet.hunger = Math.min(100, pet.hunger + 10);
   updateStats();
-  // Set up to start sleep sequence on next landing
-  if (!isSleeping && !sleepSequenceActive) {
-    sleepSequenceActive = true;
-    sleepSequenceStep = 0;
+  // Only request sleep, do NOT start sequence yet
+  if (!isSleeping && !sleepSequenceActive && !sleepRequested) {
+    sleepRequested = true;
     // The actual sleep sequence will start when pig lands in animate()
   }
 };
@@ -87,6 +86,7 @@ window.healPet = function() {
 function runSleepSequence() {
   sleepSequenceStep = 1;
   sleepSequenceActive = true;
+  sleepRequested = false; // reset request
   let originalDirection = direction;
   let imgA = (originalDirection === 1) ? petImgRight : petImgLeft;
   let imgB = (originalDirection === 1) ? petImgLeft : petImgRight;
@@ -109,6 +109,7 @@ function runSleepSequence() {
             // Wake up: show original facing for 2s, then jump
             currentImg = imgA;
             isSleeping = false;
+            updateStats(); // update stats after sleep
             setTimeout(() => {
               sleepSequenceStep = 0;
               sleepSequenceActive = false;
@@ -160,10 +161,13 @@ function animate() {
   let groundY = canvas.height - height;
   if (petY >= groundY) {
     petY = groundY;
-    if (sleepSequenceActive && sleepSequenceStep === 0) {
-      // Begin sleep sequence when pig lands, only once
+    // If sleep was requested, trigger the sleep sequence NOW
+    if (sleepRequested && !sleepSequenceActive) {
       runSleepSequence();
-    } else if (!isSleeping && !sleepSequenceActive) {
+    } else if (sleepSequenceActive && sleepSequenceStep === 0) {
+      // (legacy, should never happen but left for safety)
+      runSleepSequence();
+    } else if (!isSleeping && !sleepSequenceActive && !sleepRequested) {
       startJump();
     }
   }
