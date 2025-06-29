@@ -26,12 +26,10 @@ let direction = -1; // -1=left, 1=right
 let isSleeping = false;
 let sleepSequenceActive = false;
 let sleepRequested = false;
-let sleepSequenceStep = 0;
 let sleepSequenceTimer = null;
-let currentImg; // Will be set after images load
-let resumeDirection = direction;
-let resumeImg;
-let imagesLoaded = 0;
+let currentImg;
+let sleepResumeDirection = direction;
+let sleepResumeImg;
 
 // --- Stats Logic ---
 let pet = {
@@ -75,8 +73,8 @@ window.sleepPet = function() {
   updateStats();
   if (!isSleeping && !sleepSequenceActive && !sleepRequested) {
     sleepRequested = true;
-    resumeDirection = direction;
-    resumeImg = (direction === 1) ? petImgRight : petImgLeft;
+    sleepResumeDirection = direction;
+    sleepResumeImg = (direction === 1) ? petImgRight : petImgLeft;
   }
 };
 window.healPet = function() {
@@ -85,33 +83,40 @@ window.healPet = function() {
   updateStats();
 };
 
-// --- Sleep Sequence Logic ---
+// --- Sleep Sequence Logic (as specified) ---
 function runSleepSequence() {
-  sleepSequenceStep = 1;
   sleepSequenceActive = true;
   sleepRequested = false;
-  let imgA = resumeImg;
-  let imgB = (resumeImg === petImgRight) ? petImgLeft : petImgRight;
-  currentImg = imgA;
   vx = 0; vy = 0;
 
+  // 1. Stay still for 1s (facing direction at time of sleep press)
+  let originalImg = sleepResumeImg;
+  let oppositeImg = (sleepResumeImg === petImgRight) ? petImgLeft : petImgRight;
+  currentImg = originalImg;
+
   setTimeout(() => {
-    currentImg = imgB;
+    // 2. Switch to opposite image
+    currentImg = oppositeImg;
     setTimeout(() => {
-      currentImg = imgA;
+      // 3. Switch back to original
+      currentImg = originalImg;
       setTimeout(() => {
-        currentImg = imgB;
+        // 4. Switch to opposite again
+        currentImg = oppositeImg;
         setTimeout(() => {
+          // 5. Switch to sleep image for 5s
           currentImg = petImgSleep;
           isSleeping = true;
           sleepSequenceActive = false;
           setTimeout(() => {
-            currentImg = imgA;
+            // 6. For 2s, switch to the image pig was facing/going when sleep was pressed
+            currentImg = originalImg;
             isSleeping = false;
+            sleepSequenceActive = true; // Prevent movement for 2s
             setTimeout(() => {
-              sleepSequenceStep = 0;
+              // 7. Resume jumping in the original direction
               sleepSequenceActive = false;
-              direction = resumeDirection;
+              direction = sleepResumeDirection;
               currentImg = (direction === 1) ? petImgRight : petImgLeft;
               startJump();
             }, 2000);
@@ -182,7 +187,7 @@ function registerBackgroundSync(tag) {
 }
 
 // --- Start Everything ---
-// Only start animation after all 3 images are loaded!
+let imagesLoaded = 0;
 function onImgLoad() {
   imagesLoaded++;
   if (imagesLoaded === 3) {
