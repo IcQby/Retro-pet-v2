@@ -1,21 +1,3 @@
-// --- Canvas and Pet Animation ---
-const canvas = document.getElementById('pet-canvas');
-const ctx = canvas.getContext('2d');
-
-// --- Responsive Canvas ---
-const PET_WIDTH = 102, PET_HEIGHT = 102;
-function resizeCanvas() {
-  canvas.width = canvas.clientWidth;
-  canvas.height = 300;
-  if (typeof petX !== 'undefined' && typeof petY !== 'undefined') {
-    petX = Math.min(Math.max(petX, 0), canvas.width - PET_WIDTH - 10);
-    petY = canvas.height - PET_HEIGHT;
-  }
-}
-window.addEventListener('resize', resizeCanvas);
-// Only run resizeCanvas on DOMContentLoaded once, not animate or anything else
-window.addEventListener('DOMContentLoaded', resizeCanvas);
-
 // --- Pet Images ---
 const petImgLeft = new Image();
 const petImgRight = new Image();
@@ -26,7 +8,60 @@ petImgRight.src = 'icon/pig-right.png';
 petImgSleep.src = 'icon/pig-sleep.png';
 petImgSleepR.src = 'icon/pig-sleepR.png';
 
-// --- Helper to wait for all images to load ---
+// --- Canvas and Rendering ---
+const canvas = document.getElementById('pet-canvas');
+const ctx = canvas.getContext('2d');
+const PET_WIDTH = 102, PET_HEIGHT = 102;
+
+// --- Pet Animation State ---
+let petX, petY;
+let vx = 0, vy = 0, gravity = 0.4;
+let direction = -1; // -1=left, 1=right
+let isSleeping = false;
+let sleepSequenceActive = false;
+let sleepRequested = false;
+let sleepSequenceStep = 0;
+let currentImg;
+let resumeDirection;
+let resumeImg;
+let pendingSleep = false;
+let pendingWake = false;
+let wakeTimeoutId = null;
+
+// --- Stats Logic ---
+let pet = {
+  happiness: 50,
+  hunger: 50,
+  cleanliness: 50,
+  health: 50,
+};
+
+// --- UI Helpers ---
+function setButtonsDisabled(disabled) {
+  document.querySelectorAll('button').forEach(btn => {
+    btn.disabled = disabled;
+  });
+}
+
+function updateStats() {
+  document.getElementById('happiness').textContent = pet.happiness;
+  document.getElementById('hunger').textContent = pet.hunger;
+  document.getElementById('cleanliness').textContent = pet.cleanliness;
+  document.getElementById('health').textContent = pet.health;
+}
+
+// --- Responsive Canvas ---
+function resizeCanvas() {
+  canvas.width = canvas.clientWidth;
+  canvas.height = 300;
+  if (typeof petX !== 'undefined' && typeof petY !== 'undefined') {
+    petX = Math.min(Math.max(petX, 0), canvas.width - PET_WIDTH - 10);
+    petY = canvas.height - PET_HEIGHT;
+  }
+}
+window.addEventListener('resize', resizeCanvas);
+
+// --- Image Preload Helper ---
 function loadImages(images) {
   return Promise.all(
     images.map(
@@ -39,44 +74,7 @@ function loadImages(images) {
   );
 }
 
-// --- Pet Animation State ---
-let petX, petY;
-let vx = 0, vy = 0, gravity = 0.4;
-let direction = -1; // -1=left, 1=right
-let isSleeping = false;
-let sleepSequenceActive = false;
-let sleepRequested = false;
-let sleepSequenceStep = 0;
-let currentImg; // will set after images are loaded
-let resumeDirection;
-let resumeImg;
-let pendingSleep = false;
-let pendingWake = false;
-let wakeTimeoutId = null;
-
-// --- Helper: Enable/Disable Buttons ---
-function setButtonsDisabled(disabled) {
-  document.querySelectorAll('button').forEach(btn => {
-    btn.disabled = disabled;
-  });
-}
-
-// --- Stats Logic ---
-let pet = {
-  happiness: 50,
-  hunger: 50,
-  cleanliness: 50,
-  health: 50,
-};
-
-function updateStats() {
-  document.getElementById('happiness').textContent = pet.happiness;
-  document.getElementById('hunger').textContent = pet.hunger;
-  document.getElementById('cleanliness').textContent = pet.cleanliness;
-  document.getElementById('health').textContent = pet.health;
-}
-
-// --- Pet Care Functions ---
+// --- Pet Care Functions (exposed to window) ---
 window.feedPet = function() {
   pet.hunger = Math.max(0, pet.hunger - 15);
   pet.happiness = Math.min(100, pet.happiness + 5);
@@ -97,12 +95,11 @@ window.sleepPet = function() {
   pet.health = Math.min(100, pet.health + 10);
   pet.hunger = Math.min(100, pet.hunger + 10);
   updateStats();
-  // Only request sleep. The actual sleep sequence will be triggered when pig next lands
   if (!isSleeping && !sleepSequenceActive && !sleepRequested) {
     sleepRequested = true;
     resumeDirection = direction;
     resumeImg = (direction === 1) ? petImgRight : petImgLeft;
-    pendingSleep = true; // Only set the flag!
+    pendingSleep = true;
   }
 };
 window.healPet = function() {
@@ -116,7 +113,6 @@ function runSleepSequence() {
   sleepSequenceStep = 1;
   sleepSequenceActive = true;
   sleepRequested = false;
-
   setButtonsDisabled(true);
 
   let imgA = resumeImg;
@@ -164,7 +160,7 @@ function startJump() {
   vy = -speed * Math.sin(angle);
 }
 
-// --- Background & Animation ---
+// --- Animation/Background ---
 function drawBackground() {
   ctx.fillStyle = '#90EE90';
   ctx.fillRect(0, canvas.height * 2 / 3, canvas.width, canvas.height / 3);
@@ -176,14 +172,14 @@ function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
 
-  // --- MAIN FIX: Only stop movement for isSleeping, sleepSequenceActive, or pendingWake
+  // Only move if not sleeping, not in sleep sequence, not pendingWake
   if (!isSleeping && !sleepSequenceActive && !pendingWake) {
     vy += gravity;
     petX += vx;
     petY += vy;
   }
 
-  // Wall bounce logic
+  // Wall bounce
   if (!isSleeping && !sleepSequenceActive && !pendingWake) {
     if (petX <= 0) {
       petX = 0;
@@ -198,7 +194,7 @@ function animate() {
     }
   }
 
-  // LANDING logic: ONLY stop for sleep if on ground
+  // Landing logic
   let groundY = canvas.height - PET_HEIGHT;
   if (petY >= groundY) {
     petY = groundY;
@@ -217,7 +213,7 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-// --- Background Sync ---
+// --- Background Sync helper ---
 function registerBackgroundSync(tag) {
   if ('serviceWorker' in navigator && 'SyncManager' in window) {
     navigator.serviceWorker.ready.then(registration => {
@@ -226,8 +222,7 @@ function registerBackgroundSync(tag) {
   }
 }
 
-// --- Service Worker: Force Always Update and Reload Page ---
-// WARNING: Only reload if not already reloading, to avoid double loads.
+// --- Service Worker hot update logic ---
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./service-worker.js').then(registration => {
     if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -253,17 +248,14 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// --- Start Everything ---
+// --- Startup: Only launch once ---
 window.addEventListener('DOMContentLoaded', () => {
-  // Only launch main logic once!
   if (window.__pet_loaded__) return;
   window.__pet_loaded__ = true;
-
   resizeCanvas();
   updateStats();
   loadImages([petImgLeft, petImgRight, petImgSleep, petImgSleepR])
     .then(() => {
-      // Set initial position and image only after all images are loaded
       petX = canvas.width - PET_WIDTH - 10;
       petY = canvas.height - PET_HEIGHT;
       currentImg = petImgLeft;
