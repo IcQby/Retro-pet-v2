@@ -13,6 +13,7 @@ function resizeCanvas() {
   }
 }
 window.addEventListener('resize', resizeCanvas);
+// Only run resizeCanvas on DOMContentLoaded once, not animate or anything else
 window.addEventListener('DOMContentLoaded', resizeCanvas);
 
 // --- Pet Images ---
@@ -175,15 +176,15 @@ function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
 
-  // Only move if not sleeping or in sleep sequence or pendingWake
-  if (!isSleeping && !sleepSequenceActive && !pendingSleep && !pendingWake) {
+  // --- MAIN FIX: Only stop movement for isSleeping, sleepSequenceActive, or pendingWake
+  if (!isSleeping && !sleepSequenceActive && !pendingWake) {
     vy += gravity;
     petX += vx;
     petY += vy;
   }
 
   // Wall bounce logic
-  if (!isSleeping && !sleepSequenceActive && !pendingSleep && !pendingWake) {
+  if (!isSleeping && !sleepSequenceActive && !pendingWake) {
     if (petX <= 0) {
       petX = 0;
       direction = 1;
@@ -226,6 +227,7 @@ function registerBackgroundSync(tag) {
 }
 
 // --- Service Worker: Force Always Update and Reload Page ---
+// WARNING: Only reload if not already reloading, to avoid double loads.
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./service-worker.js').then(registration => {
     if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -234,17 +236,29 @@ if ('serviceWorker' in navigator) {
       if (newWorker) {
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed') {
-            if (navigator.serviceWorker.controller) window.location.reload();
+            if (navigator.serviceWorker.controller && !window.__reloading__) {
+              window.__reloading__ = true;
+              window.location.reload();
+            }
           }
         });
       }
     });
   });
-  navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!window.__reloading__) {
+      window.__reloading__ = true;
+      window.location.reload();
+    }
+  });
 }
 
 // --- Start Everything ---
 window.addEventListener('DOMContentLoaded', () => {
+  // Only launch main logic once!
+  if (window.__pet_loaded__) return;
+  window.__pet_loaded__ = true;
+
   resizeCanvas();
   updateStats();
   loadImages([petImgLeft, petImgRight, petImgSleep, petImgSleepR])
