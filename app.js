@@ -38,6 +38,15 @@ let currentImg = petImgLeft; // Track which image is currently shown
 let resumeDirection = direction; // direction to restore after sleep
 let resumeImg = currentImg;      // image to restore after sleep
 let pendingSleep = false; // NEW: flag for stopping pig when hitting ground for sleep
+let pendingWake = false; // NEW: flag for stopping pig during wake phase
+let wakeTimeoutId = null;
+
+// --- Helper: Enable/Disable Buttons ---
+function setButtonsDisabled(disabled) {
+  document.querySelectorAll('button').forEach(btn => {
+    btn.disabled = disabled;
+  });
+}
 
 // --- Stats Logic ---
 let pet = {
@@ -95,13 +104,16 @@ function runSleepSequence() {
   sleepSequenceActive = true;
   sleepRequested = false;
 
+  // --- DISABLE ALL BUTTONS FOR THE DURATION OF SLEEP SEQUENCE ---
+  setButtonsDisabled(true);
+
   let imgA = resumeImg;
   let imgB = (resumeImg === petImgRight) ? petImgLeft : petImgRight;
   let sleepImg = (resumeImg === petImgRight) ? petImgSleepR : petImgSleep;
 
   currentImg = imgA;
 
-  // Sleep animation: 1s original, 0.5s opposite, 0.5s original, 0.5s opposite, then sleep for 5s, then wake up (2s original)
+  // Sleep animation: 1s original, 0.5s opposite, 0.5s original, 0.5s opposite, then sleep for 5s, then wake up (2s original, pig stays still)
   setTimeout(() => {
     currentImg = imgB;
     setTimeout(() => {
@@ -113,14 +125,19 @@ function runSleepSequence() {
           isSleeping = true;
           sleepSequenceActive = false;
           setTimeout(() => {
+            // Wake, stay still for 2s
             currentImg = imgA;
             isSleeping = false;
-            setTimeout(() => {
+            pendingWake = true;    // Stop movement during wake phase
+            // After 2s, resume motion and enable buttons
+            wakeTimeoutId = setTimeout(() => {
+              pendingWake = false;
               sleepSequenceStep = 0;
               sleepSequenceActive = false;
               direction = resumeDirection;
               currentImg = (direction === 1) ? petImgRight : petImgLeft;
               startJump();
+              setButtonsDisabled(false);
             }, 2000);
           }, 5000);
         }, 500);
@@ -147,14 +164,15 @@ function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
 
-  if (!isSleeping && !sleepSequenceActive && !pendingSleep) {
+  // Only allow movement if not sleeping, not in sleep sequence, not pending sleep, not pendingWake
+  if (!isSleeping && !sleepSequenceActive && !pendingSleep && !pendingWake) {
     vy += gravity;
     petX += vx;
     petY += vy;
   }
 
   // Walls
-  if (!isSleeping && !sleepSequenceActive && !pendingSleep) {
+  if (!isSleeping && !sleepSequenceActive && !pendingSleep && !pendingWake) {
     if (petX <= 0) {
       petX = 0;
       direction = 1;
@@ -178,7 +196,7 @@ function animate() {
       vy = 0;
       pendingSleep = false;
       runSleepSequence();
-    } else if (!isSleeping && !sleepSequenceActive && !sleepRequested) {
+    } else if (!isSleeping && !sleepSequenceActive && !sleepRequested && !pendingWake) {
       startJump();
     }
   }
