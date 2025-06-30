@@ -175,12 +175,14 @@ function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
 
+  // Only move if not sleeping or in sleep sequence or pendingWake
   if (!isSleeping && !sleepSequenceActive && !pendingSleep && !pendingWake) {
     vy += gravity;
     petX += vx;
     petY += vy;
   }
 
+  // Wall bounce logic
   if (!isSleeping && !sleepSequenceActive && !pendingSleep && !pendingWake) {
     if (petX <= 0) {
       petX = 0;
@@ -195,6 +197,7 @@ function animate() {
     }
   }
 
+  // LANDING logic: ONLY stop for sleep if on ground
   let groundY = canvas.height - PET_HEIGHT;
   if (petY >= groundY) {
     petY = groundY;
