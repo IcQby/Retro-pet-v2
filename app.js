@@ -3,21 +3,23 @@ const canvas = document.getElementById('pet-canvas');
 const ctx = canvas.getContext('2d');
 
 // --- Responsive Canvas ---
-const CANVAS_HEIGHT = 300;
+// Always match the canvas's drawing buffer to its CSS width and fixed height
+const PET_WIDTH = 102, PET_HEIGHT = 102;
 function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = CANVAS_HEIGHT;
-  // If the pet already exists, keep it on the ground at the right
+  // Set drawing buffer to match visible size
+  canvas.width = canvas.clientWidth;
+  canvas.height = 300;
+  // Clamp pet position after resize to stay on ground and visible
   if (typeof petX !== 'undefined' && typeof petY !== 'undefined') {
-    petX = Math.min(petX, canvas.width - width - 10);
-    petY = canvas.height - height;
+    petX = Math.min(Math.max(petX, 0), canvas.width - PET_WIDTH - 10);
+    petY = canvas.height - PET_HEIGHT;
   }
 }
 window.addEventListener('resize', resizeCanvas);
+window.addEventListener('DOMContentLoaded', resizeCanvas);
 resizeCanvas();
 
 // --- Pet Images ---
-const width = 102, height = 102;
 let petImgLeft = new Image();
 let petImgRight = new Image();
 let petImgSleep = new Image();
@@ -35,7 +37,6 @@ let isSleeping = false;
 let sleepSequenceActive = false;
 let sleepRequested = false;
 let sleepSequenceStep = 0;
-let sleepSequenceTimer = null;
 let currentImg = petImgLeft; // Track which image is currently shown
 let resumeDirection = direction; // direction to restore after sleep
 let resumeImg = currentImg;      // image to restore after sleep
@@ -171,8 +172,8 @@ function animate() {
       direction = 1;
       vx = Math.abs(vx);
       currentImg = petImgRight; // Always face right at left edge
-    } else if (petX + width >= canvas.width) {
-      petX = canvas.width - width;
+    } else if (petX + PET_WIDTH >= canvas.width) {
+      petX = canvas.width - PET_WIDTH;
       direction = -1;
       vx = -Math.abs(vx);
       currentImg = petImgLeft; // Always face left at right edge
@@ -180,7 +181,7 @@ function animate() {
   }
 
   // Ground
-  let groundY = canvas.height - height;
+  let groundY = canvas.height - PET_HEIGHT;
   if (petY >= groundY) {
     petY = groundY;
     if (sleepRequested && !sleepSequenceActive) {
@@ -191,7 +192,7 @@ function animate() {
   }
 
   // Draw pig
-  ctx.drawImage(currentImg, petX, petY, width, height);
+  ctx.drawImage(currentImg, petX, petY, PET_WIDTH, PET_HEIGHT);
 
   requestAnimationFrame(animate);
 }
@@ -212,18 +213,15 @@ function registerBackgroundSync(tag) {
 // --- Service Worker: Force Always Update and Reload Page ---
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./service-worker.js').then(registration => {
-    // If a waiting service worker exists, make it activate immediately
     if (registration.waiting) {
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     }
-    // Listen for updates to the service worker and force reload
     registration.addEventListener('updatefound', () => {
       const newWorker = registration.installing;
       if (newWorker) {
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed') {
             if (navigator.serviceWorker.controller) {
-              // New update available, reload to get the new service worker
               window.location.reload();
             }
           }
@@ -231,14 +229,12 @@ if ('serviceWorker' in navigator) {
       }
     });
   });
-  // Listen for controlling service worker changing and reload page
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     window.location.reload();
   });
 }
 
 // --- Start Everything ---
-// Wait for all pet images to load before starting animation and setting up pet position
 Promise.all([
   new Promise(resolve => petImgLeft.onload = resolve),
   new Promise(resolve => petImgRight.onload = resolve),
@@ -246,8 +242,8 @@ Promise.all([
   new Promise(resolve => petImgSleepR.onload = resolve)
 ]).then(() => {
   // Set initial position and image
-  petX = canvas.width - width - 10;
-  petY = canvas.height - height;
+  petX = canvas.width - PET_WIDTH - 10;
+  petY = canvas.height - PET_HEIGHT;
   currentImg = petImgLeft; // Start facing left
   updateStats(); // Show stats at startup
   animate();
