@@ -101,7 +101,7 @@ window.sleepPet = function() {
     sleepRequested = true;
     resumeDirection = direction;
     resumeImg = (direction === 1) ? petImgRight : petImgLeft;
-    pendingSleep = true;
+    pendingSleep = true; // Only set the flag!
   }
 };
 window.healPet = function() {
@@ -139,7 +139,7 @@ function runSleepSequence() {
             currentImg = imgA;
             isSleeping = false;
             pendingWake = true;
-            vx = 0; // Ensure pig stays still
+            vx = 0; // Ensure pig stays still during wake phase
             vy = 0;
             wakeTimeoutId = setTimeout(() => {
               pendingWake = false;
