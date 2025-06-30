@@ -14,17 +14,29 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas);
 window.addEventListener('DOMContentLoaded', resizeCanvas);
-resizeCanvas();
 
 // --- Pet Images ---
-let petImgLeft = new Image();
-let petImgRight = new Image();
-let petImgSleep = new Image();
-let petImgSleepR = new Image();
+const petImgLeft = new Image();
+const petImgRight = new Image();
+const petImgSleep = new Image();
+const petImgSleepR = new Image();
 petImgLeft.src = 'icon/pig-left.png';
 petImgRight.src = 'icon/pig-right.png';
 petImgSleep.src = 'icon/pig-sleep.png';
 petImgSleepR.src = 'icon/pig-sleepR.png';
+
+// --- Helper to wait for all images to load ---
+function loadImages(images) {
+  return Promise.all(
+    images.map(
+      img =>
+        new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+        })
+    )
+  );
+}
 
 // --- Pet Animation State ---
 let petX, petY;
@@ -34,11 +46,11 @@ let isSleeping = false;
 let sleepSequenceActive = false;
 let sleepRequested = false;
 let sleepSequenceStep = 0;
-let currentImg = petImgLeft; // Track which image is currently shown
-let resumeDirection = direction; // direction to restore after sleep
-let resumeImg = currentImg;      // image to restore after sleep
-let pendingSleep = false; // NEW: flag for stopping pig when hitting ground for sleep
-let pendingWake = false; // NEW: flag for stopping pig during wake phase
+let currentImg; // will set after images are loaded
+let resumeDirection;
+let resumeImg;
+let pendingSleep = false;
+let pendingWake = false;
 let wakeTimeoutId = null;
 
 // --- Helper: Enable/Disable Buttons ---
@@ -89,7 +101,7 @@ window.sleepPet = function() {
     sleepRequested = true;
     resumeDirection = direction;
     resumeImg = (direction === 1) ? petImgRight : petImgLeft;
-    pendingSleep = true; // NEW: set pending sleep flag
+    pendingSleep = true;
   }
 };
 window.healPet = function() {
@@ -104,7 +116,6 @@ function runSleepSequence() {
   sleepSequenceActive = true;
   sleepRequested = false;
 
-  // --- DISABLE ALL BUTTONS FOR THE DURATION OF SLEEP SEQUENCE ---
   setButtonsDisabled(true);
 
   let imgA = resumeImg;
@@ -113,7 +124,6 @@ function runSleepSequence() {
 
   currentImg = imgA;
 
-  // Sleep animation: 1s original, 0.5s opposite, 0.5s original, 0.5s opposite, then sleep for 5s, then wake up (2s original, pig stays still)
   setTimeout(() => {
     currentImg = imgB;
     setTimeout(() => {
@@ -125,11 +135,9 @@ function runSleepSequence() {
           isSleeping = true;
           sleepSequenceActive = false;
           setTimeout(() => {
-            // Wake, stay still for 2s
             currentImg = imgA;
             isSleeping = false;
-            pendingWake = true;    // Stop movement during wake phase
-            // After 2s, resume motion and enable buttons
+            pendingWake = true;
             wakeTimeoutId = setTimeout(() => {
               pendingWake = false;
               sleepSequenceStep = 0;
@@ -164,14 +172,12 @@ function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
 
-  // Only allow movement if not sleeping, not in sleep sequence, not pending sleep, not pendingWake
   if (!isSleeping && !sleepSequenceActive && !pendingSleep && !pendingWake) {
     vy += gravity;
     petX += vx;
     petY += vy;
   }
 
-  // Walls
   if (!isSleeping && !sleepSequenceActive && !pendingSleep && !pendingWake) {
     if (petX <= 0) {
       petX = 0;
@@ -186,11 +192,9 @@ function animate() {
     }
   }
 
-  // Ground
   let groundY = canvas.height - PET_HEIGHT;
   if (petY >= groundY) {
     petY = groundY;
-    // If sleep is pending, stop pig and start sleep sequence exactly once
     if (pendingSleep) {
       vx = 0;
       vy = 0;
@@ -201,7 +205,6 @@ function animate() {
     }
   }
 
-  // Draw pig
   ctx.drawImage(currentImg, petX, petY, PET_WIDTH, PET_HEIGHT);
 
   requestAnimationFrame(animate);
@@ -238,16 +241,17 @@ if ('serviceWorker' in navigator) {
 window.addEventListener('DOMContentLoaded', () => {
   resizeCanvas();
   updateStats();
-  Promise.all([
-    new Promise(resolve => petImgLeft.onload = resolve),
-    new Promise(resolve => petImgRight.onload = resolve),
-    new Promise(resolve => petImgSleep.onload = resolve),
-    new Promise(resolve => petImgSleepR.onload = resolve)
-  ]).then(() => {
-    // Set initial position and image only after canvas has a width
-    petX = canvas.width - PET_WIDTH - 10;
-    petY = canvas.height - PET_HEIGHT;
-    currentImg = petImgLeft;
-    animate();
-  });
+  loadImages([petImgLeft, petImgRight, petImgSleep, petImgSleepR])
+    .then(() => {
+      // Set initial position and image only after all images are loaded
+      petX = canvas.width - PET_WIDTH - 10;
+      petY = canvas.height - PET_HEIGHT;
+      currentImg = petImgLeft;
+      resumeDirection = direction;
+      resumeImg = currentImg;
+      animate();
+    })
+    .catch((err) => {
+      console.error("One or more images failed to load.", err);
+    });
 });
