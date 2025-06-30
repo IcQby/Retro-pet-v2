@@ -32,11 +32,11 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch: respond with cache, then update cache in the background
+// Fetch: network-first for fresh content, fallback to cache if offline
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      const fetchPromise = fetch(event.request).then(networkResponse => {
+    fetch(event.request)
+      .then(networkResponse => {
         // Only cache valid responses (status 200)
         if (networkResponse && networkResponse.status === 200) {
           caches.open(CACHE_NAME).then(cache => {
@@ -44,14 +44,7 @@ self.addEventListener('fetch', event => {
           });
         }
         return networkResponse;
-      }).catch(() => {
-        // If fetch fails and no cache, optionally return a fallback
-        if (cachedResponse) return cachedResponse;
-        // You can add fallback logic here for certain URLs (e.g. offline page)
-      });
-
-      // Return cached response immediately if exists, else wait for network
-      return cachedResponse || fetchPromise;
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });
