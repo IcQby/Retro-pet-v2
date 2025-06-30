@@ -4,9 +4,12 @@ const canvas = document.getElementById('pet-canvas');
 const ctx = canvas.getContext('2d');
 
 // --- Responsive Canvas ---
+// The HTML width/height attributes should be set (e.g. 600x300).
+// This code makes the canvas responsive *visually* on window resize, but keeps the drawing buffer at 600x300.
 function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = 300;
+  // Only adjust CSS size for responsiveness, not the buffer
+  canvas.style.width = window.innerWidth < 600 ? window.innerWidth + 'px' : '600px';
+  canvas.style.height = '300px';
 }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
@@ -14,12 +17,12 @@ window.addEventListener('resize', resizeCanvas);
 // --- Pet Images ---
 const width = 102, height = 102;
 let petImgLeft = new Image();
-petImgLeft.src = 'icon/pig-left.png';
 let petImgRight = new Image();
-petImgRight.src = 'icon/pig-right.png';
 let petImgSleep = new Image();
-petImgSleep.src = 'icon/pig-sleep.png';
 let petImgSleepR = new Image();
+petImgLeft.src = 'icon/pig-left.png';
+petImgRight.src = 'icon/pig-right.png';
+petImgSleep.src = 'icon/pig-sleep.png';
 petImgSleepR.src = 'icon/pig-sleepR.png'; // right-facing sleep image
 
 // --- Pet Animation State ---
@@ -191,7 +194,7 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-// --- Background Sync & Push ---
+// --- Background Sync ---
 function registerBackgroundSync(tag) {
   if ('serviceWorker' in navigator && 'SyncManager' in window) {
     navigator.serviceWorker.ready.then(registration => {
@@ -203,41 +206,37 @@ function registerBackgroundSync(tag) {
     });
   }
 }
-function askPushPermissionAndSubscribe() {
-  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.log('Push messaging not supported');
-    return;
-  }
-  Notification.requestPermission().then(permission => {
-    if (permission === 'granted') {
-      subscribeUserToPush();
-    } else {
-      console.log('Push permission denied');
+
+// --- Service Worker: Force Always Update and Reload Page ---
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./service-worker.js').then(registration => {
+    // If a waiting service worker exists, make it activate immediately
+    if (registration.waiting) {
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     }
-  });
-}
-function subscribeUserToPush() {
-  navigator.serviceWorker.ready.then(registration => {
-    const vapidPublicKey = 'BOrX-ZnfnDcU7wXcmnI7kVvIVFQeZzxpDvLrFqXdeB-lKQAzP8Hy2LqzWdN-s2Yfr3Kr-Q8OjQ_k3X1KNk1-7LI';
-    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
-    registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: convertedVapidKey
-    }).then(subscription => {
-      console.log('User subscribed to push:', subscription);
-    }).catch(err => {
-      console.log('Failed to subscribe user:', err);
+    // Listen for updates to the service worker and force reload
+    registration.addEventListener('updatefound', () => {
+      const newWorker = registration.installing;
+      if (newWorker) {
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed') {
+            if (navigator.serviceWorker.controller) {
+              // New update available, reload to get the new service worker
+              window.location.reload();
+            }
+          }
+        });
+      }
     });
   });
-}
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+  // Listen for controlling service worker changing and reload page
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload();
+  });
 }
 
 // --- Start Everything ---
+// Wait for all pet images to load before starting animation and setting up pet position
 Promise.all([
   new Promise(resolve => petImgLeft.onload = resolve),
   new Promise(resolve => petImgRight.onload = resolve),
@@ -254,6 +253,4 @@ Promise.all([
 
 window.addEventListener('DOMContentLoaded', () => {
   updateStats();
-  askPushPermissionAndSubscribe();
 });
-```
