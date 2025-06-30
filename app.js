@@ -1,4 +1,3 @@
-//```javascript name=app.js
 // --- Canvas and Pet Animation ---
 const canvas = document.getElementById('pet-canvas');
 const ctx = canvas.getContext('2d');
@@ -256,4 +255,3 @@ window.addEventListener('DOMContentLoaded', () => {
   updateStats();
   askPushPermissionAndSubscribe();
 });
-```
