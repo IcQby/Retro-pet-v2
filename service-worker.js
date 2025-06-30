@@ -5,8 +5,11 @@ const urlsToCache = [
   './app.js',
   './style.css',
   './manifest.json',
-  './icon/icon-192.png',
-  './icon/icon-512.png'
+  './icon/icon-512.png',
+  './icon/pig-left.png',
+  './icon/pig-right.png',
+  './icon/pig-sleep.png',
+  './icon/pig-sleepR.png'
 ];
 
 // Install: cache all required assets and activate immediately
