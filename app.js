@@ -1,18 +1,20 @@
-//```javascript name=app.js
 // --- Canvas and Pet Animation ---
 const canvas = document.getElementById('pet-canvas');
 const ctx = canvas.getContext('2d');
 
 // --- Responsive Canvas ---
-// The HTML width/height attributes should be set (e.g. 600x300).
-// This code makes the canvas responsive *visually* on window resize, but keeps the drawing buffer at 600x300.
+const CANVAS_HEIGHT = 300;
 function resizeCanvas() {
-  // Only adjust CSS size for responsiveness, not the buffer
-  canvas.style.width = window.innerWidth < 600 ? window.innerWidth + 'px' : '600px';
-  canvas.style.height = '300px';
+  canvas.width = window.innerWidth;
+  canvas.height = CANVAS_HEIGHT;
+  // If the pet already exists, keep it on the ground at the right
+  if (typeof petX !== 'undefined' && typeof petY !== 'undefined') {
+    petX = Math.min(petX, canvas.width - width - 10);
+    petY = canvas.height - height;
+  }
 }
-resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 // --- Pet Images ---
 const width = 102, height = 102;
@@ -23,7 +25,7 @@ let petImgSleepR = new Image();
 petImgLeft.src = 'icon/pig-left.png';
 petImgRight.src = 'icon/pig-right.png';
 petImgSleep.src = 'icon/pig-sleep.png';
-petImgSleepR.src = 'icon/pig-sleepR.png'; // right-facing sleep image
+petImgSleepR.src = 'icon/pig-sleepR.png';
 
 // --- Pet Animation State ---
 let petX, petY;
